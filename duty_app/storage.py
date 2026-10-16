@@ -85,7 +85,7 @@ class Repository:
             row = db.execute("SELECT status,due,token,claimed FROM reminders WHERE day=?", (ds,)).fetchone()
             if row:
                 status, due, _, claimed = row
-                if status == "dismissed" or (status == "snoozed" and datetime.fromisoformat(due) > now):
+                if status in ("dismissed", "notified") or (status == "snoozed" and datetime.fromisoformat(due) > now):
                     db.execute("COMMIT")
                     return None
                 if status == "showing" and now - datetime.fromisoformat(claimed) < timedelta(minutes=5):
@@ -104,9 +104,14 @@ class Repository:
         status = "snoozed" if action == "snooze" else "dismissed"
         due = (now + timedelta(minutes=10)).isoformat() if action == "snooze" else None
         with self.connection() as db:
-            result = db.execute("UPDATE reminders SET status=?,due=? WHERE day=? AND token=? AND status='showing'",
+            result = db.execute("UPDATE reminders SET status=?,due=? WHERE day=? AND token=? AND status IN ('showing','notified')",
                                 (status, due, target, token))
         return result.rowcount == 1
+
+    def mark_notified(self, target: str, token: str):
+        with self.connection() as db:
+            return db.execute("UPDATE reminders SET status='notified' WHERE day=? AND token=? AND status='showing'",
+                              (target, token)).rowcount == 1
 
     def reminder(self, target: str):
         with self.connection() as db:

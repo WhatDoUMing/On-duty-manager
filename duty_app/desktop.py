@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ctypes
 from ctypes import wintypes
-from datetime import datetime
 import hashlib
 import json
 import logging
@@ -15,7 +14,6 @@ import threading
 import urllib.request
 import webbrowser
 
-from .engine import schedule
 from .reminders import Reminders
 from .server import AppServer
 from .service import DutyService
@@ -62,59 +60,18 @@ def activate_existing(data_dir):
 
 
 def run_popup(data_dir, target, token):
-    # This module intentionally does not import Tk/Pillow/pystray in the parent.
-    import tkinter as tk
-    from tkinter import ttk
-    repository = Repository(Path(data_dir)/"duty.sqlite3")
-    reminder = repository.reminder(target)
-    if not reminder or reminder[2] != token or target != datetime.now().date().isoformat():
-        return
-    _, state = repository.read()
-    info = schedule(state, target, target)[0]
-    if not info["member_id"]:
-        repository.reminder_action(target, token, "dismiss", datetime.now())
-        return
-    root = tk.Tk()
-    root.title("值日管家 · 今日提醒")
-    root.configure(bg="#f5f3ed")
-    root.resizable(False, False)
-    root.attributes("-topmost", True)
-    width, height = 440, 370 if len(info["name"]) > 10 else 320
-    root.geometry(f"{width}x{height}+{(root.winfo_screenwidth()-width)//2}+{(root.winfo_screenheight()-height)//2}")
-    frame = tk.Frame(root, bg="#f5f3ed", padx=28, pady=24)
-    frame.pack(fill="both", expand=True)
-    tk.Label(frame, text=f"{target}  ·  今日值日", bg="#f5f3ed", fg="#777", font=("Microsoft YaHei UI", 11)).pack(anchor="w")
-    tk.Label(frame, text=info["name"], bg="#f5f3ed", fg="#2c2c2c", wraplength=384, justify="left",
-             font=("Microsoft YaHei UI", 20 if len(info["name"]) > 10 else 30, "bold")).pack(anchor="w", pady=(16, 6))
-    tk.Label(frame, text="倒垃圾 + 拖地" if info["mop"] else "倒垃圾 · 今日无需拖地", bg="#f5f3ed", fg="#c5483d", font=("Microsoft YaHei UI", 13)).pack(anchor="w")
-    tk.Label(frame, text="补做任务，请记得完成" if info["carried"] else "花一点时间，让公共空间保持整洁。", bg="#f5f3ed", fg="#777", font=("Microsoft YaHei UI", 10)).pack(anchor="w", pady=(12, 22))
-
-    def finish(action):
-        repository.reminder_action(target, token, action, datetime.now())
-        root.destroy()
-        if action == "open":
-            activate_existing(data_dir)
-
-    buttons = tk.Frame(frame, bg="#f5f3ed")
-    buttons.pack(fill="x")
-    for label, action in (("打开管理", "open"), ("十分钟后提醒", "snooze"), ("关闭本次", "dismiss")):
-        ttk.Button(buttons, text=label, command=lambda a=action: finish(a)).pack(side="left", padx=(0, 8))
-    root.protocol("WM_DELETE_WINDOW", lambda: finish("dismiss"))
-
-    def check_date():
-        if target != datetime.now().date().isoformat():
-            root.destroy()
-        else:
-            root.after(15000, check_date)
-    root.after(15000, check_date)
-    root.mainloop()
+    from .notifications import deliver
+    return deliver(data_dir, target, token)
 
 
-def run_desktop(data_dir, port=8765, background=False, headless=False):
+def run_desktop(data_dir, port=8765, background=False, headless=False, activate_on_duplicate=True):
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
     guard = SingleInstance(data_dir) if sys.platform == "win32" else None
     if guard and not guard.acquired:
+        if not activate_on_duplicate:
+            guard.close()
+            return
         # The first process may still be binding its socket.
         for _ in range(20):
             if activate_existing(data_dir):

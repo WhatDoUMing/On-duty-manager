@@ -117,7 +117,7 @@ function render(){
   $("nextMopPerson").textContent=mop?`${mop.name} · ${weekday(mop.date)}`:"恢复值日后继续安排";
   $("mopIntervalLabel").textContent=`每 ${view.config?.mop_interval || 3} 个值日天一次`;
   $("reminderTime").textContent=view.state.settings.reminder_time;
-  $("reminderStatus").textContent=view.state.settings.paused?"提醒已暂停，可随时恢复":"托盘运行时弹窗提醒";
+  $("reminderStatus").textContent=view.state.settings.paused?"提醒已暂停，可随时恢复":"Windows 右下角系统通知";
   $("reminderEnabled").textContent=view.state.settings.paused?"● 提醒已暂停":"● 提醒已开启";
   $("reminderEnabled").style.color=view.state.settings.paused?"#a0875a":"#6b8366";
   $("yesterdayTitle").textContent=yesterday.member_id?`昨日 ${prettyDay(view.yesterday)} · ${yesterday.name}${yesterday.mop?"（含拖地）":""}`:"昨日没有值日安排";

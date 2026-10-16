@@ -16,12 +16,19 @@ def main():
     parser.add_argument("--popup", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--day", help=argparse.SUPPRESS)
     parser.add_argument("--token", help=argparse.SUPPRESS)
+    parser.add_argument("--toast-activation", help=argparse.SUPPRESS)
     args = parser.parse_args()
     args.data_dir.mkdir(parents=True, exist_ok=True)
     log = RotatingFileHandler(args.data_dir/"duty.log", maxBytes=1048576, backupCount=2, encoding="utf-8")
     logging.basicConfig(level=logging.INFO, handlers=[log], format="%(asctime)s %(levelname)s %(message)s")
     try:
-        if args.popup:
+        if args.toast_activation:
+            from .notifications import activate
+            action = activate(args.data_dir, args.toast_activation)
+            if action in ("open", "snooze"):
+                run_desktop(args.data_dir, args.port, background=action == "snooze",
+                            activate_on_duplicate=action == "open")
+        elif args.popup:
             if args.day and args.token:
                 run_popup(args.data_dir, args.day, args.token)
         else:
@@ -30,7 +37,7 @@ def main():
         pass
     except Exception:
         logging.exception("程序启动失败")
-        if sys.platform == "win32" and not args.headless:
+        if sys.platform == "win32" and not args.headless and not args.popup and not args.toast_activation:
             import ctypes
             ctypes.windll.user32.MessageBoxW(None, f"启动未完成，请查看日志：\n{args.data_dir / 'duty.log'}",
                                             "值日管家", 0x10)

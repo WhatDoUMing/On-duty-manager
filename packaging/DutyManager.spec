@@ -6,11 +6,12 @@ a = Analysis(
     [str(root / 'run_duty.pyw')],
     pathex=[str(root)],
     binaries=[],
-    datas=[(str(root / 'duty_manager.html'), '.'), (str(root / 'assets'), 'assets')],
-    hiddenimports=['pystray._win32', 'PIL._imaging', 'tkinter', 'tkinter.ttk'],
+    datas=[(str(root / 'duty_manager.html'), '.'), (str(root / 'assets'), 'assets'),
+           (str(root / 'docs' / 'THIRD_PARTY_NOTICES.md'), 'docs')],
+    hiddenimports=['pystray._win32', 'PIL._imaging'],
     hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=['pytest', 'psutil', 'websocket', 'unittest', 'paddleocr', 'torch',
-              'numpy', 'pandas', 'matplotlib', 'PyQt5', 'PySide6'],
+              'numpy', 'pandas', 'matplotlib', 'PyQt5', 'PySide6', 'tkinter', '_tkinter'],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

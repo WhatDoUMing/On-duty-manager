@@ -1,4 +1,4 @@
-"""One cheap, sleep-based scheduler. Tk is imported only by the popup child."""
+"""One cheap, sleep-based scheduler; native toast senders exit after delivery."""
 from datetime import datetime
 import logging
 import threading
@@ -18,7 +18,7 @@ class Reminders:
             return False
         ds = now.date().isoformat()
         existing = self.repository.reminder(ds)
-        if existing and existing[0] == "dismissed":
+        if existing and existing[0] in ("dismissed", "notified"):
             return False
         if not existing and now.strftime("%H:%M") < state["settings"]["reminder_time"]:
             return False

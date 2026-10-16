@@ -1,12 +1,13 @@
-"""Exercise real Windows tray, instance mutex and popup without user settings.
+"""Exercise real Windows tray, instance mutex and toast without user settings.
 
-The probe replaces browser opening with a counter and closes its own popup
-automatically. Data, screenshots and measurements are isolated in .runtime.
+The probe replaces browser opening with a counter and uses an isolated toast
+identity. Data and measurements are isolated in .runtime.
 """
 from __future__ import annotations
 
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -44,33 +45,18 @@ def host(data_dir):
 
 
 def popup_test(data_dir, target, token):
-    import tkinter as tk
-    from PIL import ImageGrab
     from duty_app.desktop import run_popup
-    original = tk.Tk
-
-    def patched():
-        root = original()
-        def inspect():
-            def children(widget):
-                for child in widget.winfo_children():
-                    yield child
-                    yield from children(child)
-            try:
-                root.update_idletasks()
-                x,y=root.winfo_rootx(),root.winfo_rooty()
-                image = ImageGrab.grab(bbox=(x,y,x+root.winfo_width(),y+root.winfo_height()))
-                image.save(ROOT/".runtime/qa/reminder.png")
-                button = next(widget for widget in children(root)
-                              if widget.winfo_class()=="TButton" and widget.cget("text")=="十分钟后提醒")
-                button.invoke()
-            except Exception:
-                root.destroy()
-                raise
-        root.after(700, inspect)
-        return root
-    tk.Tk = patched
-    run_popup(data_dir, target, token)
+    from duty_app.notifications import action_uri
+    from duty_app.storage import Repository
+    assert run_popup(data_dir, target, token)
+    repository=Repository(data_dir/"duty.sqlite3")
+    assert repository.reminder(target)[0]=="notified"
+    os.startfile(action_uri(data_dir,target,token,"snooze"))
+    for _ in range(80):
+        if repository.reminder(target)[0]=="snoozed":
+            return
+        time.sleep(.1)
+    raise AssertionError("Native toast snooze activation failed")
 
 
 def main():
@@ -118,12 +104,13 @@ def main():
                                     cwd=ROOT,capture_output=True,timeout=15,creationflags=flags)
             assert popup.returncode==0, popup.stderr
             assert repo.reminder(target)[0]=="snoozed", "popup did not persist snooze"
+            assert (data_dir/"opened.txt").read_text().count("opened")==1, "snooze unexpectedly opened browser"
             assert not measured.children(recursive=True), "popup process still resident"
             result = {"result":"passed","private_mb":round(memory.private/1024**2,2),
                       "working_set_mb":round(memory.rss/1024**2,2),"idle_cpu_percent":cpu,
                       "measurement_seconds":20,"resident_children":0,
                       "checks":["native tray","single instance activation","unicode paths",
-                                "native popup","snooze persistence","popup process exit"]}
+                                "Windows toast","native snooze activation","notification process exit"]}
             (runtime/"qa/desktop-metrics.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
             print(json.dumps(result))
         finally:
@@ -137,6 +124,8 @@ def main():
             process.stderr.close()
             if stderr:
                 print(stderr.decode(errors="replace"),file=sys.stderr)
+            from duty_app.notifications import cleanup_test_registration
+            cleanup_test_registration(data_dir)
         assert not (data_dir/"runtime.json").exists(), "runtime discovery file not cleaned up"
 
 

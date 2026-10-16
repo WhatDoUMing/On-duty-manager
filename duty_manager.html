@@ -71,7 +71,7 @@
       </article>
       <article class="summary-card">
         <div class="card-kicker"><span class="icon-tile green"><svg class="icon"><use href="#i-clock"/></svg></span><span>每日提醒</span></div>
-        <p id="reminderTime" class="summary-value digits">22:00</p><p id="reminderStatus" class="muted">托盘运行时弹窗提醒</p>
+        <p id="reminderTime" class="summary-value digits">22:00</p><p id="reminderStatus" class="muted">Windows 右下角系统通知</p>
         <div class="card-footer"><span id="reminderEnabled"><span class="status-dot"></span>提醒已开启</span><button id="reminderOpen" class="text-button">调整时间 →</button></div>
       </article>
     </section>
@@ -112,7 +112,7 @@
         <div class="form-grid"><div id="startDateGroup"><label for="startDate">开始值日日期</label><input id="startDate" type="date" required></div><div><label for="firstMember">起始值日生</label><select id="firstMember" required></select></div><div><label for="mopInterval">拖地间隔（值日天）</label><input id="mopInterval" type="number" value="3" min="1" max="30" required></div><div><label for="firstMop">首个拖地日</label><input id="firstMop" type="date" required></div></div>
         <button class="button primary" type="submit">保存排班规则</button>
       </form>
-      <form id="reminderForm" class="form-section"><h3>每日提醒</h3><label for="reminderInput">弹窗时间</label><input id="reminderInput" type="time" value="22:00" required><label class="checkbox-row"><input id="pausedInput" type="checkbox"> 暂停每日提醒</label><label class="checkbox-row"><input id="startupInput" type="checkbox"> 登录 Windows 后自动启动</label><p class="muted form-note">关闭管理网页后，托盘继续提醒；选择托盘“退出”后停止运行。</p><button class="button" type="submit">保存提醒设置</button></form>
+      <form id="reminderForm" class="form-section"><h3>每日提醒</h3><label for="reminderInput">系统通知时间</label><input id="reminderInput" type="time" value="22:00" required><label class="checkbox-row"><input id="pausedInput" type="checkbox"> 暂停每日提醒</label><label class="checkbox-row"><input id="startupInput" type="checkbox"> 登录 Windows 后自动启动</label><p class="muted form-note">通过 Windows 右下角系统通知提醒，也可在通知中心查看。关闭网页后托盘继续提醒；选择托盘“退出”后停止后续提醒。</p><button class="button" type="submit">保存提醒设置</button></form>
       <details class="form-section"><summary>导入原来的值日表</summary><form id="importForm"><p class="muted form-note">粘贴旧页面生成的 DUTY: 配置。已有排班时，新配置从次日起生效。</p><label for="importKey">原值日表配置</label><textarea id="importKey" rows="3" required placeholder="DUTY:..."></textarea><button class="button" type="submit">导入配置</button></form></details>
     </div>
   </dialog>
