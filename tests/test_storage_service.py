@@ -77,6 +77,22 @@ class StorageServiceTests(unittest.TestCase):
         with self.assertRaises(RuleError):
             self.service.edit("import", {"revision":view["revision"], "key":"DUTY:broken!"})
 
+    def test_settings_version_conflict_has_no_startup_side_effect(self):
+        from unittest.mock import MagicMock
+        startup = MagicMock()
+        service = DutyService(self.repo, today=lambda:date(2026,10,13), startup=startup)
+        with self.assertRaises(RevisionConflict):
+            service.edit("settings", {"revision":0,"autostart":True})
+        startup.set_enabled.assert_not_called()
+
+    def test_invalid_ancient_import_rolls_back(self):
+        import json
+        fresh = Repository(self.path.parent/"fresh.sqlite3")
+        service = DutyService(fresh, today=lambda:date(2026,10,13))
+        with self.assertRaises(RuleError):
+            service.edit("import", {"revision":0,"key":json.dumps({"members":["甲"], "mopAnchorDate":"1900-01-01"})})
+        self.assertEqual(fresh.read()[0],0)
+
 
 if __name__ == "__main__":
     unittest.main()

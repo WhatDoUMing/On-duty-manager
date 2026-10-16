@@ -75,6 +75,15 @@ class ReminderTests(unittest.TestCase):
         self.now -= timedelta(minutes=30)
         self.assertFalse(self.worker.check())
 
+    def test_previous_days_snooze_is_not_shown_next_morning(self):
+        self.now=datetime(2026,10,13,23,59)
+        self.worker.check()
+        ds,token=self.shown[-1]
+        self.repo.reminder_action(ds,token,"snooze",self.now)
+        self.now=datetime(2026,10,14,0,10)
+        self.assertFalse(self.worker.check())
+        self.assertEqual(len(self.shown),1)
+
 
 if __name__ == "__main__":
     unittest.main()

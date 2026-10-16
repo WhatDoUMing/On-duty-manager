@@ -20,7 +20,7 @@ class RuleError(ValueError):
 def day(value: str) -> date:
     try:
         parsed = date.fromisoformat(value)
-        if parsed.isoformat() != value:
+        if parsed.isoformat() != value or not 1900 <= parsed.year <= 2200:
             raise ValueError
         return parsed
     except (ValueError, TypeError):

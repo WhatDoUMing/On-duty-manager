@@ -10,6 +10,7 @@ import json
 import logging
 from pathlib import Path
 import socket
+import time
 from urllib.parse import parse_qs, urlsplit
 
 from . import __version__
@@ -42,7 +43,14 @@ class AppServer(ThreadingHTTPServer):
         self.instance_key, self.on_open = instance_key, on_open
         self.addresses = lan_addresses()
         self.hosts = {"localhost", "127.0.0.1", *self.addresses}
+        self.addresses_checked = time.monotonic()
         super().__init__(address, Handler)
+
+    def refresh_addresses(self, force=False):
+        if force or time.monotonic()-self.addresses_checked > 60:
+            self.addresses = lan_addresses()
+            self.hosts = {"localhost", "127.0.0.1", *self.addresses}
+            self.addresses_checked = time.monotonic()
 
     def get_request(self):
         connection, address = super().get_request()
@@ -96,6 +104,8 @@ class Handler(BaseHTTPRequestHandler):
         host = self.headers.get("Host", "")
         try:
             parsed = urlsplit("http://"+host)
+            if parsed.hostname not in self.server.hosts:
+                self.server.refresh_addresses()
             return (parsed.hostname in self.server.hosts and parsed.port == self.server.server_address[1]
                     and not parsed.username and parsed.path == "")
         except ValueError:
@@ -114,13 +124,14 @@ class Handler(BaseHTTPRequestHandler):
                 if not self.server.auth.authenticated(self._token()):
                     return self._reply(401, {"error": "请先登录管理端"})
                 if target.path == "/api/state":
+                    self.server.refresh_addresses()
                     result = self.server.service.view()
                     result["lan_urls"] = [f"http://{ip}:{self.server.server_address[1]}" for ip in self.server.addresses]
                     return self._reply(200, result)
                 if target.path == "/api/schedule":
                     query = parse_qs(target.query)
-                    _, state = self.server.service.repository.read()
-                    return self._reply(200, {"days": schedule(state, query.get("start", [""])[0], query.get("end", [""])[0])})
+                    revision, state = self.server.service.repository.read()
+                    return self._reply(200, {"revision": revision, "days": schedule(state, query.get("start", [""])[0], query.get("end", [""])[0])})
                 return self._reply(404, {"error": "页面不存在"})
             files = {"/": ("duty_manager.html", "text/html; charset=utf-8"),
                      "/duty_manager.html": ("duty_manager.html", "text/html; charset=utf-8"),

@@ -112,6 +112,26 @@ class EngineTests(unittest.TestCase):
             make_config(["a", "a"], "2026-10-12")
         self.assertEqual(state, before)
 
+    def test_return_and_cancel_return_are_idempotent(self):
+        state = mark_absence(fixture(), "3", "2026-10-12", True)
+        self.assertEqual(state,mark_absence(state,"3","2026-10-12",True))
+        returned = mark_absence(state,"3","2026-10-13",False)
+        self.assertEqual(returned,mark_absence(returned,"3","2026-10-13",False))
+        cancelled = mark_absence(returned,"3","2026-10-13",True)
+        self.assertFalse(any(e["kind"]=="return" for e in cancelled["events"]))
+
+    def test_missing_owner_who_leaves_is_skipped(self):
+        state = mark_missed(fixture(),"2026-10-12","2026-10-13")
+        state = mark_absence(state,"1","2026-10-13",True)
+        rows = schedule(state,"2026-10-13","2026-10-15")
+        self.assertEqual([r["name"] for r in rows],["2号","3号","4号"])
+        self.assertTrue(rows[2]["mop"])
+
+    def test_calendar_date_bounds(self):
+        for value in ("0001-01-01","9999-12-31","2026-02-30","20261012",123):
+            with self.assertRaises(RuleError):
+                schedule(fixture(),value,"2026-10-13")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -79,12 +79,13 @@ def run_popup(data_dir, target, token):
     root.configure(bg="#f5f3ed")
     root.resizable(False, False)
     root.attributes("-topmost", True)
-    width, height = 440, 320
+    width, height = 440, 370 if len(info["name"]) > 10 else 320
     root.geometry(f"{width}x{height}+{(root.winfo_screenwidth()-width)//2}+{(root.winfo_screenheight()-height)//2}")
     frame = tk.Frame(root, bg="#f5f3ed", padx=28, pady=24)
     frame.pack(fill="both", expand=True)
     tk.Label(frame, text=f"{target}  ·  今日值日", bg="#f5f3ed", fg="#777", font=("Microsoft YaHei UI", 11)).pack(anchor="w")
-    tk.Label(frame, text=info["name"], bg="#f5f3ed", fg="#2c2c2c", font=("Microsoft YaHei UI", 30, "bold")).pack(anchor="w", pady=(16, 6))
+    tk.Label(frame, text=info["name"], bg="#f5f3ed", fg="#2c2c2c", wraplength=384, justify="left",
+             font=("Microsoft YaHei UI", 20 if len(info["name"]) > 10 else 30, "bold")).pack(anchor="w", pady=(16, 6))
     tk.Label(frame, text="倒垃圾 + 拖地" if info["mop"] else "倒垃圾 · 今日无需拖地", bg="#f5f3ed", fg="#c5483d", font=("Microsoft YaHei UI", 13)).pack(anchor="w")
     tk.Label(frame, text="补做任务，请记得完成" if info["carried"] else "花一点时间，让公共空间保持整洁。", bg="#f5f3ed", fg="#777", font=("Microsoft YaHei UI", 10)).pack(anchor="w", pady=(12, 22))
 
@@ -122,7 +123,7 @@ def run_desktop(data_dir, port=8765, background=False, headless=False):
         guard.close()
         return
     repository = Repository(data_dir/"duty.sqlite3")
-    startup = Startup() if sys.platform == "win32" else None
+    startup = Startup(command=Startup.default_command(data_dir)) if sys.platform == "win32" else None
     service = DutyService(repository, startup=startup)
     instance_key = secrets.token_urlsafe(32)
     server = None
@@ -174,6 +175,7 @@ def run_desktop(data_dir, port=8765, background=False, headless=False):
             icon.update_menu()
 
         def show_addresses(*_):
+            server.refresh_addresses(force=True)
             message = "\n".join(f"http://{ip}:{runtime['port']}" for ip in server.addresses)
             if sys.platform == "win32":
                 ctypes.windll.user32.MessageBoxW(None, message or "请先连接 Wi-Fi 或有线网络", "手机管理地址 · 需输入管理口令", 0x40)

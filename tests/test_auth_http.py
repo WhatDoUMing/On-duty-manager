@@ -99,6 +99,20 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("十分钟", result["error"])
 
+    def test_ticket_expiry_and_password_persistence(self):
+        self.setup_auth()
+        now=[0.0]
+        auth=Auth(self.repo,clock=lambda:now[0])
+        self.assertTrue(auth.initialized())
+        token=auth.ticket()
+        now[0]=61
+        with self.assertRaises(RuleError):
+            auth.redeem(token)
+        session=auth.login("test-password","local")
+        self.assertTrue(auth.authenticated(session))
+        now[0]+=12*3600+1
+        self.assertFalse(auth.authenticated(session))
+
 
 if __name__ == "__main__":
     unittest.main()

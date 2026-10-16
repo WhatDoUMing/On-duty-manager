@@ -1,5 +1,6 @@
 import argparse
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -29,6 +30,10 @@ def main():
         pass
     except Exception:
         logging.exception("程序启动失败")
+        if sys.platform == "win32" and not args.headless:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, f"启动未完成，请查看日志：\n{args.data_dir / 'duty.log'}",
+                                            "值日管家", 0x10)
         raise
 
 

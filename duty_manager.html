@@ -1,1081 +1,125 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>值日生管理系统</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
-  :root {
-    --bg: #f5f3ed; --card: #fff; --text: #2c2c2c; --text-dim: #888;
-    --border: #e5e3db; --accent: #d9453a; --accent-soft: #fef0ee;
-    --blue: #3a7bd5; --blue-soft: #eef3fc; --green: #4a9e5a;
-    --green-soft: #edf7ef; --orange: #e8953a; --orange-soft: #fef6ed;
-    --shadow: rgba(0,0,0,0.04); --radius: 16px; --radius-sm: 10px;
-    --fs: 15px; --fs-lg: 17px; --fs-xl: 22px; --fs-xxl: 28px;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body {
-    font-family:'Noto Sans SC','PingFang SC',system-ui,sans-serif;
-    background:var(--bg); color:var(--text); min-height:100vh; padding:16px;
-  }
-  body { font-size:var(--fs); }
-  .app { max-width:1300px; margin:0 auto; }
-
-  .header {
-    display:flex; justify-content:space-between; align-items:center;
-    margin-bottom:22px; padding:16px 24px; background:var(--card);
-    border-radius:var(--radius); box-shadow:0 2px 12px var(--shadow);
-  }
-  .header h1 { font-size:var(--fs-xl); font-weight:700; }
-  .header h1 span { color:var(--accent); }
-  .header-actions { display:flex; gap:8px; flex-wrap:wrap; }
-
-  .btn {
-    padding:9px 18px; border:none; border-radius:var(--radius-sm);
-    font-size:14px; font-weight:500; cursor:pointer; transition:all .15s;
-    font-family:inherit;
-  }
-  .btn-primary { background:var(--accent); color:#fff; }
-  .btn-primary:hover { background:#c43a30; }
-  .btn-blue { background:var(--blue); color:#fff; }
-  .btn-blue:hover { background:#2d6bc4; }
-  .btn-green { background:var(--green); color:#fff; }
-  .btn-green:hover { background:#3d8a4c; }
-  .btn-orange { background:var(--orange); color:#fff; }
-  .btn-orange:hover { background:#d08530; }
-  .btn-outline { background:transparent; color:var(--text); border:1.5px solid var(--border); }
-  .btn-outline:hover { background:var(--accent-soft); border-color:var(--accent); }
-  .btn-danger { background:#dc3545; color:#fff; }
-  .btn-danger:hover { background:#c82333; }
-  .btn-sm { padding:6px 12px; font-size:13px; }
-
-  .main-grid { display:grid; grid-template-columns:1fr 350px; gap:18px; }
-  .card {
-    background:var(--card); border-radius:var(--radius);
-    box-shadow:0 2px 12px var(--shadow); overflow:hidden;
-  }
-
-  /* Calendar */
-  .calendar-header {
-    display:flex; justify-content:space-between; align-items:center;
-    padding:16px 22px; border-bottom:1px solid var(--border);
-  }
-  .calendar-nav { display:flex; align-items:center; gap:12px; font-size:var(--fs-lg); font-weight:600; }
-  .calendar-nav button {
-    background:none; border:none; font-size:22px; cursor:pointer;
-    color:var(--text); padding:4px 10px; border-radius:6px; transition:background .15s;
-  }
-  .calendar-nav button:hover { background:var(--bg); }
-  .view-toggle {
-    display:flex; gap:4px; background:var(--bg); border-radius:8px; padding:3px;
-  }
-  .view-toggle button {
-    padding:7px 16px; border:none; background:transparent; border-radius:6px;
-    font-size:var(--fs); cursor:pointer; font-family:inherit; transition:all .15s; color:var(--text-dim);
-  }
-  .view-toggle button.active {
-    background:var(--card); color:var(--text); box-shadow:0 1px 3px var(--shadow); font-weight:500;
-  }
-
-  .calendar-body { padding:16px 22px 22px; }
-  .weekday-header {
-    display:grid; grid-template-columns:repeat(7,1fr); text-align:center;
-    color:var(--text-dim); font-size:var(--fs); margin-bottom:8px; font-weight:500;
-  }
-  .weekday-header span:first-child, .weekday-header span:last-child { color:var(--accent); opacity:.7; }
-  .week-row { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-  .week-row+.week-row { margin-top:4px; }
-
-  .day-cell {
-    aspect-ratio:1; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; border-radius:var(--radius-sm); cursor:pointer;
-    transition:all .15s; font-size:var(--fs); min-height:80px; position:relative;
-  }
-  .day-cell:hover { background:var(--bg); }
-  .day-cell.empty { cursor:default; }
-  .day-cell.empty:hover { background:transparent; }
-  .day-cell .day-num { font-weight:700; line-height:1.3; margin-bottom:3px; }
-  .day-cell .duty-name { font-size:13px; color:var(--blue); line-height:1.2; }
-  .day-cell .mop-flag { font-size:11px; color:var(--accent); font-weight:600; line-height:1.2; }
-
-  .day-cell.today { background:var(--accent); color:#fff; }
-  .day-cell.today .duty-name { color:rgba(255,255,255,.9); }
-  .day-cell.today .mop-flag { color:rgba(255,255,255,.95); }
-  .day-cell.today:hover { background:var(--accent); }
-
-  .day-cell.mop-day { background:var(--accent-soft); }
-  .day-cell.mop-day.today { background:var(--accent); }
-
-  /* Side */
-  .today-section { padding:24px 22px; border-bottom:2px solid var(--border); }
-  .today-section .label { font-size:var(--fs); color:var(--text-dim); margin-bottom:6px; }
-  .today-section .date-text { font-size:var(--fs-lg); font-weight:700; margin-bottom:18px; }
-  .duty-box { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .duty-item { padding:18px; border-radius:var(--radius-sm); }
-  .duty-item.sweep { background:var(--blue-soft); }
-  .duty-item.mop { background:var(--accent-soft); }
-  .duty-item .duty-label { font-size:var(--fs); color:var(--text-dim); margin-bottom:6px; }
-  .duty-item .duty-name { font-size:28px; font-weight:900; letter-spacing:2px; }
-  .duty-item.sweep .duty-name { color:var(--blue); }
-  .duty-item.mop .duty-name { color:var(--accent); }
-  .duty-item .duty-note { font-size:var(--fs); color:var(--text-dim); margin-top:6px; }
-  .duty-item .duty-note.today-mop { color:var(--accent); font-weight:700; font-size:16px; }
-
-  .side-tabs {
-    display:flex; gap:4px; background:var(--bg); border-radius:8px; padding:3px; margin:16px 22px 0;
-  }
-  .side-tabs button {
-    flex:1; padding:8px 0; border:none; background:transparent; border-radius:6px;
-    font-size:14px; cursor:pointer; font-family:inherit; transition:all .15s; color:var(--text-dim);
-  }
-  .side-tabs button.active {
-    background:var(--card); color:var(--text); box-shadow:0 1px 3px var(--shadow); font-weight:500;
-  }
-  .side-panel { display:none; padding:16px 22px; }
-  .side-panel.active { display:block; }
-
-  .member-list { display:flex; flex-direction:column; gap:6px; }
-  .member-item {
-    display:flex; align-items:center; gap:8px; padding:8px 12px;
-    background:var(--bg); border-radius:8px; font-size:15px;
-  }
-  .member-item .idx { color:var(--text-dim); font-size:13px; width:20px; text-align:center; }
-  .member-item .name { flex:1; font-weight:500; }
-  .member-item .status { font-size:12px; padding:3px 8px; border-radius:8px; }
-  .member-item .status.home { background:#fff3cd; color:#856404; }
-  .member-item .status.today-d { background:var(--blue-soft); color:var(--blue); }
-  .member-item .status.today-m { background:var(--accent-soft); color:var(--accent); }
-
-  .group-title { font-size:14px; font-weight:600; margin-bottom:10px; margin-top:16px; }
-  .group-title:first-child { margin-top:0; }
-  .group-title.blue { color:var(--blue); }
-  .group-title.red { color:var(--accent); }
-
-  .history-list { font-size:14px; }
-  .history-item {
-    display:flex; justify-content:space-between; align-items:center;
-    padding:7px 0; border-bottom:1px solid var(--border);
-  }
-  .history-item:last-child { border:none; }
-  .h-date { color:var(--text-dim); }
-  .h-info { display:flex; gap:8px; align-items:center; }
-  .h-tag { font-size:12px; padding:3px 8px; border-radius:8px; }
-  .h-tag.sweep { background:var(--blue-soft); color:var(--blue); }
-  .h-tag.mop { background:var(--accent-soft); color:var(--accent); }
-  .h-tag.home { background:#fff3cd; color:#856404; }
-
-  /* Modal */
-  .modal-overlay {
-    display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
-    backdrop-filter:blur(3px); z-index:100; align-items:center; justify-content:center;
-  }
-  .modal-overlay.active { display:flex; }
-  .modal {
-    background:var(--card); border-radius:var(--radius); padding:28px;
-    width:90%; max-width:520px; max-height:85vh; overflow-y:auto;
-    box-shadow:0 20px 60px rgba(0,0,0,.18);
-  }
-  .modal h2 { font-size:var(--fs-xl); font-weight:700; margin-bottom:20px; }
-  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .form-group { margin-bottom:16px; }
-  .form-group label { display:block; font-size:14px; font-weight:500; margin-bottom:6px; color:var(--text-dim); }
-  .form-group input, .form-group select {
-    width:100%; padding:11px 14px; border:1.5px solid var(--border);
-    border-radius:var(--radius-sm); font-size:var(--fs); font-family:inherit; transition:border-color .2s;
-  }
-  .form-group input:focus, .form-group select:focus { outline:none; border-color:var(--accent); }
-  .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
-
-  .warn-box {
-    background:#fff3cd; border-radius:var(--radius-sm); padding:14px;
-    font-size:var(--fs); margin-bottom:16px; color:#856404;
-  }
-
-  .toast {
-    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
-    background:var(--text); color:#fff; padding:12px 24px; border-radius:var(--radius-sm);
-    font-size:15px; opacity:0; transition:all .25s; z-index:200; pointer-events:none;
-  }
-  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-
-  /* Share section */
-  .share-section {
-    background:var(--green-soft); border-radius:var(--radius-sm);
-    padding:16px 18px; margin-top:12px;
-  }
-  .share-section h3 { font-size:15px; margin-bottom:8px; color:var(--green); }
-  .share-section p { font-size:14px; color:var(--text); margin-bottom:6px; }
-  .share-section code {
-    display:block; background:var(--card); padding:10px 14px;
-    border-radius:6px; font-size:14px; margin:8px 0;
-    word-break:break-all; user-select:all;
-  }
-  .share-section .ip {
-    font-size:18px; font-weight:700; color:var(--green);
-    background:var(--card); padding:8px 14px; border-radius:6px;
-    display:inline-block; margin:6px 0; user-select:all;
-  }
-  .share-btn {
-    display:inline-flex; align-items:center; gap:6px;
-    padding:8px 16px; border:none; border-radius:var(--radius-sm);
-    background:var(--green); color:#fff; font-size:14px;
-    cursor:pointer; font-family:inherit; transition:all .15s;
-    margin-top:10px;
-  }
-  .share-btn:hover { background:#3d8a4c; }
-
-  @media (max-width:900px) {
-    .main-grid { grid-template-columns:1fr; }
-    .header { flex-direction:column; gap:12px; }
-    .duty-box { grid-template-columns:1fr; }
-    .form-row { grid-template-columns:1fr; }
-  }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f5f3ed">
+  <title>值日管家 · 今日有序</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
 </head>
 <body>
-<div class="app">
-  <header class="header">
-    <h1>🏫 值日生<span>管家</span></h1>
-    <div class="header-actions">
-      <button class="btn btn-outline btn-sm" onclick="formatAllData()">🔄 格式化</button>
-      <button class="btn btn-outline btn-sm" onclick="openMopSetupModal()">⚙️ 设置拖地日</button>
-      <button class="btn btn-outline btn-sm" onclick="openShareModal()">📤 分享给舍友</button>
-      <button class="btn btn-orange btn-sm" onclick="openHomeModal()">🏠 回家</button>
-      <button class="btn btn-green btn-sm" onclick="openReturnModal()">↩️ 返校</button>
+  <svg class="icon-definitions" aria-hidden="true"><defs>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h2m4 0h2"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m1-16a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v2"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7M5 9v12h14V9m-10 12v-7h6v7"/></symbol>
+    <symbol id="i-broom" viewBox="0 0 24 24"><path d="m14 12 7-9M4 13l7-4 7 6-5 7-10-6Zm2 5 5-5m-1 8 5-5"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s7 8 7 12a7 7 0 0 1-14 0c0-4 7-12 7-12Z"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 18h4"/></symbol>
+  </defs></svg>
+
+  <main id="authScreen" class="auth-shell" hidden>
+    <section class="auth-card">
+      <div class="brand-mark"><svg class="icon"><use href="#i-check"/></svg></div>
+      <p class="eyebrow">DUTY MANAGER</p>
+      <h1 id="authTitle">欢迎回到值日管家</h1>
+      <p id="authDescription" class="muted">安排好每一天的小事。</p>
+      <form id="authForm">
+        <label for="password">管理口令</label>
+        <input id="password" name="password" type="password" required minlength="8" maxlength="128" autocomplete="current-password" placeholder="请输入管理口令">
+        <div id="confirmPasswordGroup" hidden><label for="confirmPassword">再次输入口令</label><input id="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password"></div>
+        <p id="authError" class="form-error" role="alert"></p>
+        <button id="authSubmit" class="button primary full" type="submit">进入管理端 <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="auth-footnote">本机与手机，共用一份值日安排</p>
+    </section>
+  </main>
+
+  <div id="dashboard" class="app" hidden>
+    <header class="topbar">
+      <a class="brand" href="/"><span class="brand-mark small"><svg class="icon"><use href="#i-check"/></svg></span><span>值日管家<small>让日常，各就各位</small></span></a>
+      <nav class="header-actions" aria-label="管理操作">
+        <button id="swapOpen" class="button"><svg class="icon"><use href="#i-swap"/></svg>临时换班</button>
+        <button id="settingsOpen" class="button"><svg class="icon"><use href="#i-settings"/></svg>设置</button>
+        <button id="logout" class="text-button">退出登录</button>
+      </nav>
+    </header>
+
+    <section class="page-intro">
+      <div><p class="eyebrow">A LITTLE ORDER, EVERY DAY</p><h1>今日有序<span class="heading-dot">.</span></h1><p id="currentDate" class="muted"></p></div>
+      <div class="sync-label"><span class="status-dot"></span><span id="syncStatus">排班已同步</span><button id="refresh" class="text-button">刷新</button></div>
+    </section>
+
+    <div id="nextConfigNotice" class="notice" hidden></div>
+    <section class="overview" aria-label="今日概览">
+      <article class="today-card">
+        <div class="today-card-top"><span class="pill light"><svg class="icon"><use href="#i-broom"/></svg>今天轮到</span><span id="todayBadge" class="today-badge"></span></div>
+        <h2 id="todayName">—</h2>
+        <div class="today-bottom"><p id="todayTasks">先设置值日名单，开始安排每一天。</p><span class="large-check" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></span></div>
+      </article>
+      <article class="summary-card">
+        <div class="card-kicker"><span class="icon-tile rose"><svg class="icon"><use href="#i-drop"/></svg></span><span>下一次拖地</span></div>
+        <p id="nextMopDate" class="summary-value">—</p><p id="nextMopPerson" class="muted">等待排班</p>
+        <div class="card-footer"><span id="mopIntervalLabel">每 3 个值日天一次</span><span class="mini-line rose-line"></span></div>
+      </article>
+      <article class="summary-card">
+        <div class="card-kicker"><span class="icon-tile green"><svg class="icon"><use href="#i-clock"/></svg></span><span>每日提醒</span></div>
+        <p id="reminderTime" class="summary-value digits">22:00</p><p id="reminderStatus" class="muted">托盘运行时弹窗提醒</p>
+        <div class="card-footer"><span id="reminderEnabled"><span class="status-dot"></span>提醒已开启</span><button id="reminderOpen" class="text-button">调整时间 →</button></div>
+      </article>
+    </section>
+
+    <section class="yesterday-bar" aria-label="昨日任务调整">
+      <div class="yesterday-copy"><span class="icon-tile sand"><svg class="icon"><use href="#i-clock"/></svg></span><div><strong id="yesterdayTitle">昨日值日</strong><p id="yesterdayDescription">未标记忘做时，系统按正常完成轮转。</p></div></div>
+      <button id="missedButton" class="button warm">标记昨日忘做 <span aria-hidden="true">↗</span></button>
+    </section>
+
+    <div class="main-grid">
+      <section class="card calendar-card" aria-label="值日日历">
+        <div class="section-header calendar-toolbar"><div><h2><svg class="icon"><use href="#i-calendar"/></svg>值日日历</h2><p id="calendarRange" class="muted"></p></div><div class="calendar-controls"><div class="segmented" role="group" aria-label="日历视图"><button id="weekView" class="selected" aria-pressed="true">周</button><button id="monthView" aria-pressed="false">月</button></div><div class="navigation"><button id="previous" class="icon-button reverse" aria-label="上一页"><svg class="icon"><use href="#i-arrow"/></svg></button><button id="goToday" class="text-button">今天</button><button id="next" class="icon-button" aria-label="下一页"><svg class="icon"><use href="#i-arrow"/></svg></button></div></div></div>
+        <div class="calendar-legend"><span><i class="legend-dot current"></i>今天</span><span><i class="legend-dot mop"></i>拖地日</span><span><i class="legend-dot missed"></i>忘做顺延</span></div>
+        <div id="calendar" class="calendar"></div>
+        <div class="calendar-note"><span>小提示</span> 忘做会让后续安排一起顺延，拖地日也会随之调整。</div>
+      </section>
+
+      <aside class="card members-card">
+        <div class="section-header"><h2><svg class="icon"><use href="#i-users"/></svg>值日成员 <span id="memberCount" class="count">0</span></h2><button id="membersEdit" class="text-button">编辑</button></div>
+        <div id="members" class="members-list"></div>
+        <div class="member-note"><svg class="icon"><use href="#i-home"/></svg><p>回家期间跳过，返校后从次日优先值日。补做任务先完成。</p></div>
+      </aside>
     </div>
-  </header>
 
-  <div class="main-grid">
-    <div class="card">
-      <div class="calendar-header">
-        <div class="calendar-nav">
-          <button onclick="navMonth(-1)">‹</button>
-          <span id="monthTitle"></span>
-          <button onclick="navMonth(1)">›</button>
-        </div>
-        <div class="view-toggle">
-          <button id="viewWeekBtn" class="active" onclick="switchView('week')">周视图</button>
-          <button id="viewMonthBtn" onclick="switchView('month')">月视图</button>
-        </div>
-      </div>
-      <div class="calendar-body" id="calendarBody"></div>
+    <div class="lower-grid">
+      <section class="card"><div class="section-header"><h2><svg class="icon"><use href="#i-swap"/></svg>换班安排</h2><button id="swapOpenBottom" class="text-button">新增换班 +</button></div><div id="swaps" class="record-list"></div></section>
+      <section class="card"><div class="section-header"><h2><svg class="icon"><use href="#i-clock"/></svg>最近调整</h2><span class="muted small-text">保留操作记录</span></div><div id="history" class="record-list"></div></section>
     </div>
-
-    <div class="card" style="display:flex;flex-direction:column;">
-      <div class="today-section">
-        <div class="label">📌 今日值日</div>
-        <div class="date-text" id="todayDate">—</div>
-        <div class="duty-box">
-          <div class="duty-item sweep">
-            <div class="duty-label">🧹 倒垃圾</div>
-            <div class="duty-name" id="todaySweepName">—</div>
-            <div class="duty-note">每天轮流</div>
-          </div>
-          <div class="duty-item mop">
-            <div class="duty-label">🧽 拖地</div>
-            <div class="duty-name" id="todayMopName">—</div>
-            <div class="duty-note" id="mopNote">每3天一次</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="side-tabs">
-        <button class="active" onclick="switchTab('members')">👥 成员</button>
-        <button onclick="switchTab('history')">📋 记录</button>
-      </div>
-
-      <div class="side-panel active" id="panelMembers">
-        <div class="group-title blue">👥 值日生</div>
-        <div class="member-list" id="memberList"></div>
-        <div class="group-title red">🧽 近期拖地安排</div>
-        <div class="member-list" id="mopList"></div>
-      </div>
-
-      <div class="side-panel" id="panelHistory">
-        <div class="history-list" id="historyList"></div>
-      </div>
-    </div>
+    <footer class="page-footer"><span>一份安排，一起保持整洁。</span><button id="shareOpen" class="text-button"><svg class="icon"><use href="#i-phone"/></svg>手机管理地址</button></footer>
   </div>
-</div>
 
-<!-- 初始化弹窗 -->
-<div class="modal-overlay" id="initModal">
-  <div class="modal">
-    <h2>📝 首次设置</h2>
-    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">请输入值日生名单，按值日顺序排列（逗号分隔）</p>
-    <div class="form-group">
-      <label>值日生名单</label>
-      <input id="inputMembers" placeholder="例：张三,李四,王五,赵六">
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="dialog-header"><div><p class="eyebrow">MAKE IT YOURS</p><h2 id="settingsTitle">值日设置</h2></div><button class="icon-button" data-close aria-label="关闭设置"><svg class="icon"><use href="#i-close"/></svg></button></div>
+    <div class="dialog-body">
+      <form id="configForm">
+        <h3>名单与轮值</h3><p id="configEffectiveNote" class="muted form-note"></p>
+        <label for="memberNames">成员名单 <span class="label-help">每行一人，按值日顺序排列</span></label><textarea id="memberNames" rows="4" required placeholder="1号&#10;2号&#10;3号&#10;4号"></textarea>
+        <div class="form-grid"><div id="startDateGroup"><label for="startDate">开始值日日期</label><input id="startDate" type="date" required></div><div><label for="firstMember">起始值日生</label><select id="firstMember" required></select></div><div><label for="mopInterval">拖地间隔（值日天）</label><input id="mopInterval" type="number" value="3" min="1" max="30" required></div><div><label for="firstMop">首个拖地日</label><input id="firstMop" type="date" required></div></div>
+        <button class="button primary" type="submit">保存排班规则</button>
+      </form>
+      <form id="reminderForm" class="form-section"><h3>每日提醒</h3><label for="reminderInput">弹窗时间</label><input id="reminderInput" type="time" value="22:00" required><label class="checkbox-row"><input id="pausedInput" type="checkbox"> 暂停每日提醒</label><label class="checkbox-row"><input id="startupInput" type="checkbox"> 登录 Windows 后自动启动</label><p class="muted form-note">关闭管理网页后，托盘继续提醒；选择托盘“退出”后停止运行。</p><button class="button" type="submit">保存提醒设置</button></form>
+      <details class="form-section"><summary>导入原来的值日表</summary><form id="importForm"><p class="muted form-note">粘贴旧页面生成的 DUTY: 配置。已有排班时，新配置从次日起生效。</p><label for="importKey">原值日表配置</label><textarea id="importKey" rows="3" required placeholder="DUTY:..."></textarea><button class="button" type="submit">导入配置</button></form></details>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="saveMembers()">确认</button>
-    </div>
-  </div>
-</div>
+  </dialog>
 
-<!-- 设置拖地日弹窗 -->
-<div class="modal-overlay" id="mopSetupModal">
-  <div class="modal">
-    <h2>⚙️ 设置拖地日</h2>
-    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">设置某个拖地日由谁负责，系统根据此日按周期自动推算后续安排</p>
-    <div class="form-row">
-      <div class="form-group">
-        <label>拖地日期</label>
-        <input type="date" id="inputMopDate">
-      </div>
-      <div class="form-group">
-        <label>拖地间隔（天）</label>
-        <input type="number" id="inputMopInterval" value="3" min="1" max="30">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>该日谁拖地</label>
-      <select id="inputMopPerson"><option>—</option></select>
-    </div>
-    <div class="warn-box">💡 设置后，系统将以该日为锚点，每隔 <span id="intervalHint">3</span> 天安排一次拖地，拖地人按名单顺序轮流</div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('mopSetupModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveMopSetup()">确认</button>
-    </div>
-  </div>
-</div>
+  <dialog id="swapDialog" aria-labelledby="swapTitle"><div class="dialog-header"><div><p class="eyebrow">A LITTLE FLEXIBILITY</p><h2 id="swapTitle">临时换个班</h2></div><button class="icon-button" data-close aria-label="关闭换班"><svg class="icon"><use href="#i-close"/></svg></button></div><form id="swapForm" class="dialog-body"><p class="muted form-note">交换两个任务的负责人，拖地任务保留在原任务位置。发生顺延时，换班一起后移。</p><div class="form-grid"><div><label for="swapFirst">第一个值日日期</label><input id="swapFirst" type="date" required><p id="swapFirstInfo" class="date-preview muted"></p></div><div><label for="swapSecond">第二个值日日期</label><input id="swapSecond" type="date" required><p id="swapSecondInfo" class="date-preview muted"></p></div></div><button class="button primary full" type="submit">确认交换</button></form></dialog>
 
-<!-- 回家弹窗 -->
-<div class="modal-overlay" id="homeModal">
-  <div class="modal">
-    <h2>🏠 标记回家</h2>
-    <p id="homeTodayInfo" style="font-size:12px;color:var(--text-dim);margin-bottom:12px;"></p>
-    <div class="form-group">
-      <label>谁回家</label>
-      <select id="homeMemberSelect"></select>
-    </div>
-    <div class="warn-box">回家后值日顺延给下一个人，如当天是拖地日则拖地任务也顺延</div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('homeModal')">取消</button>
-      <button class="btn btn-orange" onclick="markHome()">确认回家</button>
-    </div>
-  </div>
-</div>
-
-<!-- 返校弹窗 -->
-<div class="modal-overlay" id="returnModal">
-  <div class="modal">
-    <h2>↩️ 返校确认</h2>
-    <div id="returnList"></div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('returnModal')">稍后</button>
-      <button class="btn btn-green" onclick="markAllReturned()">全部已返回</button>
-    </div>
-  </div>
-</div>
-
-<!-- 格式化确认弹窗 -->
-<div class="modal-overlay" id="formatModal">
-  <div class="modal">
-    <h2>🔄 格式化</h2>
-    <div class="warn-box">⚠️ 此操作将清除所有值日安排和记录，恢复到初始状态！不可撤销！</div>
-    <div class="form-group">
-      <label>请输入「确认格式化」以继续</label>
-      <input id="formatConfirmInput" placeholder="确认格式化">
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('formatModal')">取消</button>
-      <button class="btn btn-danger" onclick="confirmFormat()">确认格式化</button>
-    </div>
-  </div>
-</div>
-
-<!-- 分享弹窗 -->
-<div class="modal-overlay" id="shareModal">
-  <div class="modal">
-    <h2>📤 分享给舍友</h2>
-    <p style="font-size:15px;color:var(--text-dim);margin-bottom:16px;">用密钥分享，舍友一键导入相同的值日表</p>
-    
-    <div class="share-section" style="background:var(--green-soft);">
-      <h3 style="color:var(--green);">🔑 方法一：密钥分享（推荐）</h3>
-      <p>① 你这边：生成密钥发给舍友</p>
-      <button class="share-btn" onclick="generateKey()">🔐 生成密钥</button>
-      <textarea id="shareKeyBox" readonly style="width:100%;height:70px;margin-top:8px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;resize:none;word-break:break-all;"></textarea>
-      <button class="share-btn" style="background:var(--blue);margin-left:6px;" onclick="copyKey()">📋 复制密钥</button>
-      <p style="margin-top:14px;">② 舍友这边：粘贴密钥并导入</p>
-      <textarea id="importKeyBox" placeholder="在这里粘贴密钥..." style="width:100%;height:70px;margin-top:8px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;resize:none;"></textarea>
-      <button class="share-btn" style="background:var(--orange);" onclick="importKey()">⬇️ 导入密钥</button>
-    </div>
-    
-    <div class="share-section" style="background:var(--blue-soft);margin-top:12px;">
-      <h3 style="color:var(--blue);">🌐 方法二：局域网共享</h3>
-      <p>同一WiFi下让舍友访问本机网页（各人数据独立）</p>
-      <button class="share-btn" style="background:var(--blue);" onclick="startLocalServer()">🚀 启动本地服务器</button>
-      <p id="serverStatus" style="margin-top:8px;"></p>
-      <div id="shareUrl" style="display:none;">
-        <code id="shareUrlText">—</code>
-      </div>
-    </div>
-
-    <div class="share-section" style="background:var(--accent-soft);margin-top:12px;">
-      <h3 style="color:var(--accent);">📁 方法三：发文件</h3>
-      <p>把 HTML 文件直接发给舍友，双击打开即可（各人数据独立）</p>
-      <button class="share-btn" style="background:var(--accent);" onclick="copyFilePath()">📋 复制文件路径</button>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeModal('shareModal')">关闭</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-// ========== 数据层 ==========
-const Store = {
-  _data: null,
-
-  load() {
-    try {
-      const raw = localStorage.getItem('duty_v3');
-      if (raw) { this._data = JSON.parse(raw); return; }
-    } catch(e) {}
-    this._data = this._default();
-  },
-
-  _default() {
-    return {
-      members: [],          // 值日生名单（即轮流顺序）
-      mopInterval: 3,       // 拖地间隔天数
-      mopAnchorDate: null,  // 锚点：某个拖地日的日期
-      mopAnchorIdx: 0,      // 锚点：该日值日生在 members 中的索引
-      homeRecords: {},      // { name: true }
-      pendingReturns: {},   // { name: true }
-      history: {}           // { "2026-06-22": { name, mop, skipped } }
-    };
-  },
-
-  _fmt(d) {
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  },
-
-  save() { localStorage.setItem('duty_v3', JSON.stringify(this._data)); },
-  get data() { return this._data; },
-  isInit() { return this._data.members.length > 0; },
-
-  // 是否拖地日
-  isMopDay(dateStr) {
-    const d = this._data;
-    if (!d.mopAnchorDate) return false;
-    const diff = this._dayDiff(d.mopAnchorDate, dateStr);
-    return diff >= 0 && (diff % d.mopInterval === 0);
-  },
-
-  // 获取某日值日生（倒垃圾 + 拖地都是同一个人）
-  // 核心逻辑：从锚点日起，每天依次轮，跳过所有回家的人
-  getDutyForDate(dateStr) {
-    const d = this._data;
-    if (!d.members.length) return { name: '—', mop: false };
-    if (!d.mopAnchorDate) return { name: '—', mop: false };
-
-    const diff = this._dayDiff(d.mopAnchorDate, dateStr);
-    if (diff < 0) return { name: '—', mop: false };
-
-    const n = d.members.length;
-    
-    // 从锚点日逐天推算，遇到回家的人跳过
-    // 规则：每天轮下一个人，如果当天有人回家，则多跳一步
-    //       当前在家的人才能值日
-    let idx = d.mopAnchorIdx;
-    
-    for (let day = 1; day <= diff; day++) {
-      const prevDate = this._fmt(new Date(new Date(d.mopAnchorDate).getTime() + (day - 1) * 86400000));
-      const h = d.history[prevDate];
-      
-      // 正常：下一天轮到 idx+1
-      idx = (idx + 1) % n;
-      
-      // 前一天有人回家 → 回家的人没做值日，多跳一步
-      if (h && h.skipped) {
-        idx = (idx + 1) % n;
-      }
-    }
-    
-    // 当前值日生如果在回家状态，顺延给下一个在家的人
-    let safety = 0;
-    while (d.homeRecords[d.members[idx]] && safety < n) {
-      idx = (idx + 1) % n;
-      safety++;
-    }
-    
-    if (safety >= n) return { name: '全员回家', mop: false };
-    
-    return { name: d.members[idx], mop: this.isMopDay(dateStr) };
-  },
-
-  _dayDiff(from, to) {
-    const a = new Date(from); a.setHours(0,0,0,0);
-    const b = new Date(to); b.setHours(0,0,0,0);
-    return Math.round((b - a) / 86400000);
-  }
-};
-
-// ========== 工具 ==========
-const WD = ['日','一','二','三','四','五','六'];
-const WD_FULL = ['周日','周一','周二','周三','周四','周五','周六'];
-function fmtDate(d) { return Store._fmt(d); }
-function todayStr() { return fmtDate(new Date()); }
-
-let currentView = 'week';
-let curYear = new Date().getFullYear();
-let curMonth = new Date().getMonth();
-
-// ========== 渲染 ==========
-function render() {
-  renderCalendar();
-  renderToday();
-  renderMembers();
-  renderHistory();
-}
-
-function renderCalendar() {
-  const body = document.getElementById('calendarBody');
-  if (!Store.data.members.length || !Store.data.mopAnchorDate) {
-    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);">请先设置值日生和拖地日</div>';
-    document.getElementById('monthTitle').textContent = '';
-    return;
-  }
-  currentView === 'week' ? renderWeek(body) : renderMonth(body);
-}
-
-function renderWeek(body) {
-  const now = new Date();
-  const dow = now.getDay();
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (dow === 0 ? -6 : 1 - dow));
-  const sunday = new Date(monday.getTime() + 6 * 86400000);
-
-  // 周视图标题：显示本周日期范围（跨月也能正确显示）
-  document.getElementById('monthTitle').textContent =
-    `${monday.getFullYear()}年 ${monday.getMonth()+1}月${monday.getDate()}日 - ${sunday.getMonth()+1}月${sunday.getDate()}日`;
-
-  let html = '';
-  for (let w = 0; w < 2; w++) {
-    const ws = new Date(monday.getTime() + w * 7 * 86400000);
-    html += `<div style="font-size:11px;color:var(--text-dim);margin:6px 0 3px;">第${w+1}周</div>`;
-    html += `<div class="weekday-header">${WD.map(s=>`<span>${s}</span>`).join('')}</div>`;
-    html += `<div class="week-row">`;
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(ws.getTime() + i * 86400000);
-      const ds = fmtDate(date);
-      const isToday = ds === todayStr();
-      const info = Store.getDutyForDate(ds);
-      const cls = isToday ? 'today' : (info.mop ? 'mop-day' : '');
-      html += `<div class="day-cell ${cls}">
-        <div class="day-num">${date.getDate()}</div>
-        <div class="duty-name">${info.name !== '—' ? info.name : ''}</div>
-        ${info.mop ? '<div class="mop-flag">🔴拖地</div>' : ''}
-      </div>`;
-    }
-    html += `</div>`;
-  }
-  body.innerHTML = html;
-}
-
-function renderMonth(body) {
-  const first = new Date(curYear, curMonth, 1);
-  const last = new Date(curYear, curMonth + 1, 0);
-  const startDow = first.getDay();
-
-  document.getElementById('monthTitle').textContent = `${curYear}年${curMonth+1}月`;
-
-  let html = `<div class="weekday-header">${WD.map(s=>`<span>${s}</span>`).join('')}</div>`;
-  let day = 1;
-  for (let row = 0; row < 6; row++) {
-    if (day > last.getDate()) break;
-    html += `<div class="week-row">`;
-    for (let col = 0; col < 7; col++) {
-      if (row === 0 && col < startDow) {
-        html += `<div class="day-cell empty"></div>`;
-      } else if (day <= last.getDate()) {
-        const date = new Date(curYear, curMonth, day);
-        const ds = fmtDate(date);
-        const isToday = ds === todayStr();
-        const info = Store.getDutyForDate(ds);
-        const cls = isToday ? 'today' : (info.mop ? 'mop-day' : '');
-        html += `<div class="day-cell ${cls}">
-          <div class="day-num">${day}</div>
-          <div class="duty-name">${info.name !== '—' ? info.name : ''}</div>
-          ${info.mop ? '<div class="mop-flag">🔴</div>' : ''}
-        </div>`;
-        day++;
-      } else {
-        html += `<div class="day-cell empty"></div>`;
-      }
-    }
-    html += `</div>`;
-  }
-  body.innerHTML = html;
-}
-
-function renderToday() {
-  const today = new Date();
-  const ds = todayStr();
-  const info = Store.getDutyForDate(ds);
-
-  document.getElementById('todayDate').textContent = `${ds} ${WD_FULL[today.getDay()]}`;
-  document.getElementById('todaySweepName').textContent = info.name;
-  document.getElementById('todayMopName').textContent = info.mop ? info.name : '—';
-  document.getElementById('mopNote').textContent = info.mop ? '🔴 今日拖地！' : '今日不用拖';
-  document.getElementById('mopNote').className = info.mop ? 'duty-note today-mop' : 'duty-note';
-}
-
-function renderMembers() {
-  const d = Store.data;
-  const today = todayStr();
-  const todayInfo = Store.getDutyForDate(today);
-
-  // 成员列表
-  const ml = document.getElementById('memberList');
-  if (!d.members.length) {
-    ml.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">未设置</div>';
-  } else {
-    ml.innerHTML = d.members.map((name, i) => {
-      const isToday = name === todayInfo.name;
-      const isHome = d.homeRecords[name];
-      let status = '';
-      if (isHome) status = '<span class="status home">🏠</span>';
-      else if (isToday) status = '<span class="status today-d">今日值日</span>';
-      return `<div class="member-item"><span class="idx">${i+1}</span><span class="name">${name}</span>${status}</div>`;
-    }).join('');
-  }
-
-  // 近期拖地安排
-  const mpl = document.getElementById('mopList');
-  if (!d.mopAnchorDate) {
-    mpl.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">点击「设置拖地日」</div>';
-  } else {
-    let html = '';
-    const anchor = new Date(d.mopAnchorDate);
-    // 从今天或锚点（取较晚的）开始显示
-    const startFrom = anchor < new Date() ? new Date() : anchor;
-    // 找到 startFrom 之后最近的拖地日
-    let firstMop = new Date(startFrom);
-    const diffToAnchor = Math.round((firstMop - anchor) / 86400000);
-    const remainder = ((diffToAnchor % d.mopInterval) + d.mopInterval) % d.mopInterval;
-    firstMop = new Date(firstMop.getTime() + (remainder === 0 ? 0 : (d.mopInterval - remainder)) * 86400000);
-
-    for (let i = 0; i < Math.min(d.members.length + 1, 6); i++) {
-      const mopDate = new Date(firstMop.getTime() + i * d.mopInterval * 86400000);
-      const ds = fmtDate(mopDate);
-      const info = Store.getDutyForDate(ds);
-      const isToday = ds === today;
-      html += `<div class="member-item">
-        <span style="color:var(--accent);font-size:11px;width:46px;">${mopDate.getMonth()+1}/${mopDate.getDate()}</span>
-        <span class="name">${info.name}</span>
-        ${isToday ? '<span class="status today-m">今日</span>' : ''}
-      </div>`;
-    }
-    mpl.innerHTML = html;
-  }
-}
-
-function renderHistory() {
-  const list = document.getElementById('historyList');
-  const history = Store.data.history;
-  const dates = Object.keys(history).sort().reverse().slice(0, 25);
-
-  if (!dates.length) {
-    list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">暂无记录</div>';
-    return;
-  }
-
-  list.innerHTML = dates.map(ds => {
-    const h = history[ds];
-    let tags = `<span class="h-tag sweep">${h.name}</span>`;
-    if (h.mop) tags += `<span class="h-tag mop">🧽拖地</span>`;
-    if (h.skipped) tags += `<span class="h-tag home">🏠顺延</span>`;
-    return `<div class="history-item"><span class="h-date">${ds}</span><div class="h-info">${tags}</div></div>`;
-  }).join('');
-}
-
-// ========== 导航 ==========
-function navMonth(delta) {
-  if (currentView === 'month') {
-    curMonth += delta;
-    if (curMonth < 0) { curMonth = 11; curYear--; }
-    if (curMonth > 11) { curMonth = 0; curYear++; }
-  }
-  render();
-}
-
-function switchView(v) {
-  currentView = v;
-  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
-  document.getElementById(v === 'week' ? 'viewWeekBtn' : 'viewMonthBtn').classList.add('active');
-  render();
-}
-
-function switchTab(t) {
-  document.querySelectorAll('.side-tabs button').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.side-panel').forEach(p => p.classList.remove('active'));
-  const idx = t === 'members' ? 0 : 1;
-  document.querySelectorAll('.side-tabs button')[idx].classList.add('active');
-  document.getElementById(t === 'members' ? 'panelMembers' : 'panelHistory').classList.add('active');
-}
-
-// ========== 弹窗 ==========
-function openModal(id) { document.getElementById(id).classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-
-// 格式化
-function formatAllData() {
-  document.getElementById('formatConfirmInput').value = '';
-  openModal('formatModal');
-}
-
-function confirmFormat() {
-  if (document.getElementById('formatConfirmInput').value !== '确认格式化') {
-    showToast('❌ 请输入「确认格式化」');
-    return;
-  }
-  localStorage.removeItem('duty_v3');
-  Store.load();
-  closeModal('formatModal');
-  render();
-  showToast('🔄 已格式化');
-  setTimeout(() => openModal('initModal'), 300);
-}
-
-// 初始设置：输入值日生名单
-function saveMembers() {
-  const str = document.getElementById('inputMembers').value;
-  const members = str.split(',').map(s => s.trim()).filter(Boolean);
-  if (members.length < 1) { showToast('❌ 至少需要1名值日生'); return; }
-
-  Store.data.members = members;
-  Store.data.mopAnchorDate = null;
-  Store.data.mopAnchorIdx = 0;
-  Store.data.homeRecords = {};
-  Store.data.pendingReturns = {};
-  Store.data.history = {};
-  Store.save();
-
-  closeModal('initModal');
-  render();
-  showToast('✅ 已保存名单');
-  setTimeout(() => openMopSetupModal(), 400);
-}
-
-// 设置拖地日
-function openMopSetupModal() {
-  if (!Store.data.members.length) { showToast('⚠️ 请先添加值日生'); return; }
-  const d = Store.data;
-  document.getElementById('inputMopDate').value = d.mopAnchorDate || todayStr();
-  document.getElementById('inputMopInterval').value = d.mopInterval || 3;
-  document.getElementById('intervalHint').textContent = d.mopInterval || 3;
-
-  const sel = document.getElementById('inputMopPerson');
-  sel.innerHTML = d.members.map((m, i) => `<option value="${i}">${m}</option>`).join('');
-  sel.value = d.mopAnchorIdx || 0;
-
-  // 间隔联动提示
-  document.getElementById('inputMopInterval').oninput = function() {
-    document.getElementById('intervalHint').textContent = this.value || 3;
-  };
-
-  openModal('mopSetupModal');
-}
-
-function saveMopSetup() {
-  const dateStr = document.getElementById('inputMopDate').value;
-  if (!dateStr) { showToast('❌ 请选择日期'); return; }
-
-  const interval = parseInt(document.getElementById('inputMopInterval').value) || 3;
-  const idx = parseInt(document.getElementById('inputMopPerson').value) || 0;
-
-  Store.data.mopAnchorDate = dateStr;
-  Store.data.mopAnchorIdx = idx;
-  Store.data.mopInterval = interval;
-  Store.data.homeRecords = {};
-  Store.data.pendingReturns = {};
-  Store.data.history = {};
-  Store.save();
-
-  closeModal('mopSetupModal');
-  render();
-  showToast(`✅ ${dateStr} 由 ${Store.data.members[idx]} 拖地，间隔${interval}天`);
-}
-
-// 回家
-function openHomeModal() {
-  if (!Store.data.members.length) { showToast('⚠️ 请先设置值日生'); return; }
-
-  const today = todayStr();
-  const info = Store.getDutyForDate(today);
-
-  document.getElementById('homeTodayInfo').textContent =
-    `今日值日：${info.name}${info.mop ? ' 🔴今日拖地' : ''}`;
-
-  document.getElementById('homeMemberSelect').innerHTML =
-    Store.data.members.map(m => `<option value="${m}">${m}</option>`).join('');
-  document.getElementById('homeMemberSelect').value = info.name !== '—' ? info.name : Store.data.members[0];
-
-  openModal('homeModal');
-}
-
-function markHome() {
-  const name = document.getElementById('homeMemberSelect').value;
-  const today = todayStr();
-
-  Store.data.history[today] = {
-    name,
-    mop: Store.isMopDay(today),
-    skipped: true
-  };
-
-  Store.data.homeRecords[name] = true;
-  Store.data.pendingReturns[name] = true;
-  Store.save();
-
-  closeModal('homeModal');
-  render();
-  showToast(`🏠 ${name} 已回家，值日顺延`);
-}
-
-// 返校
-function openReturnModal() {
-  const pending = Object.keys(Store.data.pendingReturns).filter(k => Store.data.pendingReturns[k]);
-  const list = document.getElementById('returnList');
-
-  if (!pending.length) {
-    list.innerHTML = '<div style="color:var(--green);font-size:13px;padding:14px 0;">✅ 无需确认</div>';
-  } else {
-    list.innerHTML = pending.map(name => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
-        <span style="font-weight:500;">${name}</span>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm btn-green" onclick="markReturned('${name}')">已返回</button>
-          <button class="btn btn-sm btn-outline" onclick="markStillAway('${name}')">未返回</button>
-        </div>
-      </div>
-    `).join('');
-  }
-  openModal('returnModal');
-}
-
-function markReturned(name) {
-  Store.data.homeRecords[name] = false;
-  Store.data.pendingReturns[name] = false;
-  Store.save();
-  render();
-  showToast(`✅ ${name} 已返校，下次拖地由其负责`);
-  openReturnModal();
-}
-
-function markStillAway(name) {
-  showToast(`📋 ${name} 继续回家`);
-  closeModal('returnModal');
-}
-
-function markAllReturned() {
-  const pending = Object.keys(Store.data.pendingReturns).filter(k => Store.data.pendingReturns[k]);
-  pending.forEach(name => {
-    Store.data.homeRecords[name] = false;
-    Store.data.pendingReturns[name] = false;
-  });
-  Store.save();
-  render();
-  showToast(`✅ ${pending.length}人已全部返校`);
-  closeModal('returnModal');
-}
-
-// Toast
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
-}
-
-// ========== 分享功能 ==========
-function openShareModal() {
-  document.getElementById('serverStatus').textContent = '';
-  document.getElementById('shareUrl').style.display = 'none';
-  document.getElementById('shareKeyBox').value = '';
-  openModal('shareModal');
-}
-
-// ========== 密钥分享 ==========
-// 生成密钥：将配置打包成 Base64
-function generateKey() {
-  const d = Store.data;
-  if (!d.members.length || !d.mopAnchorDate) {
-    showToast('⚠️ 请先完成值日生和拖地日设置');
-    return;
-  }
-  
-  // 只导出核心配置，不导出本地状态（回家/历史）
-  const payload = {
-    v: 1,
-    members: d.members,
-    mopInterval: d.mopInterval,
-    mopAnchorDate: d.mopAnchorDate,
-    mopAnchorIdx: d.mopAnchorIdx
-  };
-  
-  const json = JSON.stringify(payload);
-  // 转 Base64（支持中文）
-  const key = 'DUTY:' + btoa(unescape(encodeURIComponent(json)));
-  
-  document.getElementById('shareKeyBox').value = key;
-  showToast('🔐 密钥已生成，复制发给舍友吧');
-}
-
-function copyKey() {
-  const box = document.getElementById('shareKeyBox');
-  if (!box.value) {
-    showToast('⚠️ 请先生成密钥');
-    return;
-  }
-  navigator.clipboard.writeText(box.value).then(() => {
-    showToast('📋 密钥已复制');
-  }).catch(() => {
-    box.select();
-    document.execCommand('copy');
-    showToast('📋 密钥已复制');
-  });
-}
-
-function importKey() {
-  const raw = document.getElementById('importKeyBox').value.trim();
-  if (!raw) {
-    showToast('⚠️ 请先粘贴密钥');
-    return;
-  }
-  
-  try {
-    let payload;
-    if (raw.startsWith('DUTY:')) {
-      // 解码 Base64
-      const json = decodeURIComponent(escape(atob(raw.slice(5))));
-      payload = JSON.parse(json);
-    } else {
-      // 兼容：直接尝试解析 JSON
-      payload = JSON.parse(raw);
-    }
-    
-    if (!payload.members || !Array.isArray(payload.members)) {
-      throw new Error('invalid');
-    }
-    
-    // 写入配置
-    Store.data.members = payload.members;
-    Store.data.mopInterval = payload.mopInterval || 3;
-    Store.data.mopAnchorDate = payload.mopAnchorDate || null;
-    Store.data.mopAnchorIdx = payload.mopAnchorIdx || 0;
-    // 清空本地状态
-    Store.data.homeRecords = {};
-    Store.data.pendingReturns = {};
-    Store.data.history = {};
-    Store.save();
-    
-    closeModal('shareModal');
-    render();
-    showToast('✅ 已导入值日表！');
-  } catch(e) {
-    showToast('❌ 密钥无效，请检查是否完整复制');
-  }
-}
-
-function copyFilePath() {
-  const path = 'D:\\QClawData\\workspace-agent-df4b4457\\duty_manager.html';
-  navigator.clipboard.writeText(path).then(() => {
-    showToast('📋 已复制文件路径');
-  }).catch(() => {
-    showToast('📋 路径：' + path);
-  });
-}
-
-let serverRunning = false;
-function startLocalServer() {
-  if (serverRunning) {
-    showToast('服务器已在运行');
-    return;
-  }
-  
-  // 尝试用 Python 启动简单 HTTP 服务器
-  const port = 8080;
-  const statusEl = document.getElementById('serverStatus');
-  statusEl.innerHTML = '⏳ 正在启动服务器...';
-  
-  // 使用 fetch 检测是否已有服务器在运行
-  fetch(`http://localhost:${port}/duty_manager.html`, { method: 'HEAD' })
-    .then(() => {
-      // 已经在运行
-      showServerUrl(port);
-    })
-    .catch(() => {
-      // 需要提示用户在终端运行
-      statusEl.innerHTML = `
-        <div style="margin-top:8px;">
-          <p style="font-weight:600;margin-bottom:6px;">请在本机打开终端，运行以下命令：</p>
-          <code style="font-size:13px;">cd D:\\QClawData\\workspace-agent-df4b4457 && python -m http.server ${port}</code>
-          <p style="margin-top:8px;font-size:13px;">运行后点击下方按钮：</p>
-          <button class="share-btn" style="background:var(--green);" onclick="checkServer(${port})">✅ 服务器已启动</button>
-        </div>
-      `;
-    });
-}
-
-function showServerUrl(port) {
-  // 获取本机IP
-  const pc = new RTCPeerConnection({iceServers: []});
-  pc.createDataChannel('');
-  pc.createOffer().then(offer => pc.setLocalDescription(offer));
-  
-  pc.onicecandidate = (e) => {
-    if (!e.candidate) return;
-    const match = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
-    if (match) {
-      const ip = match[1];
-      document.getElementById('shareUrlText').textContent = `http://${ip}:${port}/duty_manager.html`;
-      document.getElementById('shareUrl').style.display = 'block';
-      document.getElementById('serverStatus').innerHTML = `
-        <span style="color:var(--green);font-weight:600;">✅ 服务器运行中！</span><br>
-        <span style="font-size:13px;">本机访问：http://localhost:${port}/duty_manager.html</span>
-      `;
-      serverRunning = true;
-      pc.close();
-    }
-  };
-  
-  // 3秒超时回退
-  setTimeout(() => {
-    if (!serverRunning) {
-      document.getElementById('shareUrlText').textContent = `http://你的IP地址:${port}/duty_manager.html`;
-      document.getElementById('shareUrl').style.display = 'block';
-      document.getElementById('serverStatus').innerHTML = `<span style="color:var(--green);font-weight:600;">✅ 服务器运行中！</span>`;
-      serverRunning = true;
-      pc.close();
-    }
-  }, 3000);
-}
-
-function checkServer(port) {
-  fetch(`http://localhost:${port}/duty_manager.html`, { method: 'HEAD' })
-    .then(() => showServerUrl(port))
-    .catch(() => {
-      showToast('❌ 未检测到服务器，请确认终端命令已运行');
-    });
-}
-
-// ========== 启动 ==========
-Store.load();
-render();
-
-if (!Store.isInit()) {
-  setTimeout(() => openModal('initModal'), 400);
-} else if (!Store.data.mopAnchorDate) {
-  setTimeout(() => openMopSetupModal(), 400);
-}
-</script>
+  <dialog id="shareDialog" aria-labelledby="shareTitle"><div class="dialog-header"><div><p class="eyebrow">STAY IN SYNC</p><h2 id="shareTitle">手机也能管理</h2></div><button class="icon-button" data-close aria-label="关闭手机地址"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><p class="muted form-note">手机与电脑连接同一 Wi-Fi，用手机浏览器打开以下地址，再输入管理口令。</p><div id="lanAddresses" class="addresses"></div><p class="muted form-note">若地址未打开，请检查 Windows 防火墙是否允许此程序在专用网络通信。</p></div></dialog>
+  <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
 </body>
 </html>

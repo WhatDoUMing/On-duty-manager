@@ -41,13 +41,14 @@ class DutyService:
                 "autostart": self.startup.enabled() if self.startup else False}
 
     def edit(self, operation: str, body: dict):
-        ds = self.today().isoformat()
-        tomorrow = (self.today()+timedelta(days=1)).isoformat()
+        today = self.today()
+        ds = today.isoformat()
+        tomorrow = (today+timedelta(days=1)).isoformat()
 
         def transform(state):
             if operation == "config":
                 effective = tomorrow if state["configs"] else body.get("effective", ds)
-                if not state["configs"] and abs((day(effective)-self.today()).days) > 3650:
+                if not state["configs"] and abs((day(effective)-today).days) > 3650:
                     raise RuleError("首次起始日期请设置在十年内")
                 cfg = make_config(body.get("members"), effective, body.get("first_member"),
                                   body.get("mop_interval", 3), body.get("first_mop", effective))
@@ -94,6 +95,9 @@ class DutyService:
                 updated["configs"] = [c for c in updated["configs"] if c["effective"] < cfg["effective"]] + [cfg]
             else:
                 raise RuleError("操作不存在")
+            # Validate before commit, including legacy anchors that predate the
+            # supported calculation window. A rejected import never poisons DB.
+            schedule(updated, ds, tomorrow)
             conflicts = swap_conflicts(updated, ds)
             if conflicts:
                 if not body.get("cancel_conflicts"):

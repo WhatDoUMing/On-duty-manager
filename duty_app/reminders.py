@@ -17,6 +17,11 @@ class Reminders:
         if state["settings"]["paused"] or not state["configs"] or self.alive():
             return False
         ds = now.date().isoformat()
+        existing = self.repository.reminder(ds)
+        if existing and existing[0] == "dismissed":
+            return False
+        if not existing and now.strftime("%H:%M") < state["settings"]["reminder_time"]:
+            return False
         info = schedule(state, ds, ds)[0]
         if not info["member_id"]:
             return False

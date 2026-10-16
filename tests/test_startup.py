@@ -27,6 +27,15 @@ class StartupTests(unittest.TestCase):
         self.assertIn("run_duty.pyw", command)
         self.assertIn("--background", command)
 
+    def test_installed_command_matches_installer_even_without_spaces(self):
+        with patch("sys.frozen", True, create=True), patch("sys.executable", r"C:\Apps\DutyManager.exe"):
+            self.assertEqual(Startup.default_command(), '"C:\\Apps\\DutyManager.exe" --background')
+
+    def test_custom_data_dir_survives_startup(self):
+        command = Startup.default_command("D:/值日 测试")
+        self.assertIn("--data-dir", command)
+        self.assertIn("值日 测试", command)
+
 
 if __name__ == "__main__":
     unittest.main()

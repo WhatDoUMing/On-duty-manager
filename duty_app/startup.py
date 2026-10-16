@@ -1,5 +1,6 @@
 """Per-user startup only. Tests use a fake registry, never the real Run key."""
 from pathlib import Path
+import os
 import subprocess
 import sys
 
@@ -16,7 +17,7 @@ class Startup:
         self.command = command or self.default_command()
 
     @staticmethod
-    def default_command():
+    def default_command(data_dir=None):
         if getattr(sys, "frozen", False):
             args = [sys.executable, "--background"]
         else:
@@ -24,6 +25,12 @@ class Startup:
             if not executable.exists():
                 executable = Path(sys.executable)
             args = [str(executable), str(Path(__file__).resolve().parent.parent / "run_duty.pyw"), "--background"]
+        default = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "DutyManager"
+        if data_dir is not None and Path(data_dir).resolve() != default.resolve():
+            args += ["--data-dir", str(Path(data_dir).resolve())]
+        if getattr(sys, "frozen", False):
+            # Match the installer's always-quoted executable path.
+            return '"'+args[0]+'" '+subprocess.list2cmdline(args[1:])
         return subprocess.list2cmdline(args)
 
     def enabled(self):
