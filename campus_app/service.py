@@ -45,6 +45,7 @@ class DutyService:
         cfg = engine.current_config(state, ds)
         future = next(iter(sorted([c for c in state["configs"] if c["effective"] > ds], key=lambda c: c["effective"])), None)
         display_cfg = future or cfg
+        wallpaper_status = self.wallpaper_status(state)
         attendance = {}
         for event in sorted(state["attendance"], key=lambda e: e["date"]):
             if event["date"] <= ds:
@@ -55,7 +56,21 @@ class DutyService:
                 "away_ids": [sid for sid, away in attendance.items() if away],
                 "pending_returns": [e["student_id"] for e in state["attendance"] if not e["away"] and e["date"] > ds],
                 "overlaps": engine.overlaps(display_cfg, state["overlap_confirmations"]) if display_cfg else [],
-                "autostart": self.startup.enabled() if self.startup else False}
+                "autostart": self.startup.enabled() if self.startup else False,
+                "wallpaper_status": wallpaper_status}
+
+    def wallpaper_status(self, state=None):
+        state = state if state is not None else self.repository.read()[1]
+        enabled = state["settings"].get("wallpaper_enabled", False)
+        wallpaper = self.repository.get_meta("wallpaper_status") or {}
+        result = {key: wallpaper[key] for key in ("phase", "day", "updated", "message") if key in wallpaper}
+        if enabled and result.get("phase") in (None, "disabled"):
+            result["phase"] = "pending"
+        elif not enabled and result.get("phase") in ("active", "updating"):
+            result["phase"] = "restoring"
+        result.setdefault("phase", "disabled")
+        result["preview"] = bool(wallpaper.get("preview"))
+        return result
 
     def display(self):
         today = self.today()
@@ -89,10 +104,10 @@ class DutyService:
         mode = body.get("reminder_mode", old["reminder_mode"])
         if mode not in ("popup", "display"):
             raise RuleError("提醒方式请选择静音弹窗或浏览器展示页")
-        for key in ("paused", "widget_visible"):
+        for key in ("paused", "widget_visible", "wallpaper_enabled"):
             if key in body and not isinstance(body[key], bool):
                 raise RuleError("开关设置格式有误")
-            updated[key] = body.get(key, old[key])
+            updated[key] = body.get(key, old.get(key, False))
         updated.update(reminder_time=time, reminder_mode=mode)
         return updated
 

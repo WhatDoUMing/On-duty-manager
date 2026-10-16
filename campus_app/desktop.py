@@ -87,7 +87,7 @@ def run_desktop(data_dir, port=8766, background=False, headless=False):
     repo = Repository(data_dir/"campus.sqlite3")
     startup = Startup(command=Startup.default_command(data_dir)) if sys.platform == "win32" else None
     service = DutyService(repo, startup=startup)
-    server = worker = widget = popup = None
+    server = worker = widget = wallpaper = popup = None
     server_thread = reminder_thread = None
 
     def open_dashboard(*_):
@@ -126,11 +126,19 @@ def run_desktop(data_dir, port=8766, background=False, headless=False):
                 server_thread.join(1)
             return
         from .native import WidgetHost
+        from .wallpaper import Wallpapers
         import pystray
         from PIL import Image, ImageDraw
         widget = WidgetHost(service)
         widget.start()
-        service.on_change = widget.refresh
+        wallpaper = Wallpapers(service, data_dir)
+
+        def changed():
+            widget.refresh()
+            wallpaper.wake()
+
+        service.on_change = changed
+        wallpaper.start()
         image = Image.new("RGBA", (64, 64))
         draw = ImageDraw.Draw(image)
         draw.rounded_rectangle((3, 3, 61, 61), radius=16, fill="#37644c")
@@ -153,6 +161,7 @@ def run_desktop(data_dir, port=8766, background=False, headless=False):
             pystray.MenuItem("打开校园值日管理", open_dashboard, default=True),
             pystray.MenuItem("打开展示页", open_display),
             pystray.MenuItem("显示今日桌面名单", setting("widget_visible"), checked=lambda _: repo.read()[1]["settings"]["widget_visible"]),
+            pystray.MenuItem("每日更新值日壁纸", setting("wallpaper_enabled"), checked=lambda _: repo.read()[1]["settings"].get("wallpaper_enabled", False)),
             pystray.MenuItem("查看手机管理地址", addresses),
             pystray.MenuItem("暂停提醒", setting("paused"), checked=lambda _: repo.read()[1]["settings"]["paused"]),
             pystray.Menu.SEPARATOR, pystray.MenuItem("退出", lambda tray, _: tray.stop())))
@@ -165,6 +174,8 @@ def run_desktop(data_dir, port=8766, background=False, headless=False):
     finally:
         if worker:
             worker.stop_event.set()
+        if wallpaper:
+            wallpaper.stop()
         if widget:
             widget.stop()
         if alive():

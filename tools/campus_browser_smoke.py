@@ -91,6 +91,7 @@ def main():
             submit('#wizardForm')
             cdp.wait("!document.querySelector('#dashboard').hidden && document.querySelector('#classHeading').textContent==='高一（1）班'")
             cdp.wait("!document.querySelector('#overlapBanner').hidden")
+            assert cdp.evaluate("document.querySelector('#markPrimary').getBoundingClientRect().top<100")
             click('#confirmOverlaps')
             cdp.wait("document.querySelector('#confirmDialog').open")
             click('#confirmYes')
@@ -135,11 +136,12 @@ def main():
             click('#settingsOpen')
             field('#reminderInput','20:30')
             field('#reminderMode','display')
-            cdp.evaluate("document.querySelector('#autostart').checked=true")
+            cdp.evaluate("document.querySelector('#autostart').checked=true;document.querySelector('#wallpaperEnabled').checked=true")
             submit('#settingsForm')
             cdp.wait("!document.querySelector('#settingsDialog').open")
             assert repo.read()[1]['settings']['reminder_mode']=='display'
             assert service.startup.enabled()
+            assert repo.read()[1]['settings']['wallpaper_enabled'] is True
             # Configuration preview and next-day effect, preserving today's class.
             click('#configOpen')
             submit('#wizardForm')
@@ -182,6 +184,21 @@ def main():
             cdp.wait("!document.querySelector('#overviewPanel').hidden")
             check_no_overflow()
             cdp.screenshot(output/"campus-mobile.png")
+            cdp.evaluate('window.scrollTo(0,document.body.scrollHeight)')
+            assert cdp.evaluate("document.querySelector('#markPrimary').getBoundingClientRect().top>=0 && document.querySelector('#markPrimary').getBoundingClientRect().bottom<150"), 'assessment button did not stay visible'
+            click('#markPrimary')
+            cdp.wait("document.querySelector('#markDialog').open")
+            click('#markDialog [data-close]')
+            cdp.evaluate('window.scrollTo(0,0)')
+            click('#wallpaperOpen')
+            cdp.wait("document.querySelector('#settingsDialog').open")
+            assert cdp.evaluate("document.activeElement.id==='wallpaperEnabled'")
+            assert cdp.evaluate("document.querySelector('#wallpaperEnabled').checked")
+            cdp.screenshot(output/"campus-mobile-wallpaper-settings.png")
+            cdp.evaluate("document.querySelector('#wallpaperEnabled').checked=false")
+            submit('#settingsForm')
+            cdp.wait("!document.querySelector('#settingsDialog').open")
+            assert repo.read()[1]['settings']['wallpaper_enabled'] is False
             click('[data-open=mark]')
             cdp.wait("document.querySelector('#markDialog').open")
             assert cdp.evaluate("document.querySelector('#markDialog').getBoundingClientRect().right<=390")
@@ -266,7 +283,8 @@ def main():
                               'future swap and cancellation','attendance return','reminder settings with simulated startup',
                               'config preview/history','calendar day dialog','weekly assessment','config import/export',
                               'mobile dialogs','login/logout','separate read-only display','display snooze',
-                              'individual mode configuration','penalty conflict preserves assessment','LAN insecure-context edits']}
+                              'individual mode configuration','penalty conflict preserves assessment','LAN insecure-context edits',
+                              'sticky primary assessment action','wallpaper opt-in settings']}
             (output/'campus-browser-metrics.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
             print(json.dumps(result))
         finally:

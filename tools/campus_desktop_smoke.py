@@ -19,6 +19,17 @@ def host(root):
     import webbrowser
     from campus_app.native import WidgetHost
     from campus_app.desktop import run_desktop
+    from campus_app.wallpaper import Wallpapers
+    from campus_app.wallpaper_windows import WindowsWallpaper
+    from tools.campus_wallpaper_smoke import PreviewDesktop
+    # Exercise the actual render process without replacing the user's wallpaper.
+    def wallpaper_backend():
+        native = WindowsWallpaper()
+        native.monitors()  # Include real COM resources in the memory sample.
+        fake = PreviewDesktop(root/"original.png", ((1920,1080),))
+        fake.close = native.close
+        return fake
+    Wallpapers._windows = staticmethod(wallpaper_backend)
     original, start = pystray.Icon, WidgetHost.start
     def opened(url):
         with (root/"opened.txt").open("a", encoding="utf-8") as file:
@@ -55,7 +66,7 @@ def host(root):
 
 def main():
     import psutil
-    from PIL import ImageGrab
+    from PIL import Image, ImageGrab
     from campus_app.engine import empty_state, make_config
     from campus_app.storage import Repository
     runtime = ROOT/".runtime"
@@ -84,6 +95,8 @@ def main():
                   {"id": "a", "name": "第一组", "student_ids": ["0", "1"]},
                   {"id": "b", "name": "第二组", "student_ids": ["2", "3"]}]}]}, date.today().isoformat())]
         state["settings"]["paused"] = True
+        state["settings"]["wallpaper_enabled"] = True
+        Image.new("RGB", (16,16), "#c1d1bb").save(root/"original.png")
         repo.mutate(0, lambda _: state)
         repo.set_meta("widget_layout", {"x": 100000, "y": 100000, "width": 350, "height": 220})
         foreground = user.GetForegroundWindow()
@@ -95,6 +108,12 @@ def main():
                 if process.poll() is not None: raise AssertionError(process.stderr.read().decode(errors="replace"))
                 time.sleep(.1)
             assert (root/"ready").exists(), "tray did not start"
+            for _ in range(100):
+                wallpaper = repo.get_meta("wallpaper_status") or {}
+                if wallpaper.get("phase") == "active": break
+                if wallpaper.get("phase") == "error": raise AssertionError(wallpaper)
+                time.sleep(.1)
+            assert wallpaper.get("phase") == "active", "wallpaper worker did not finish"
             hwnd = json.loads((root/"widget.json").read_text())["hwnd"]
             assert user.IsWindowVisible(hwnd)
             exstyle = user.GetWindowLongW(hwnd, -20)
@@ -178,7 +197,7 @@ def main():
             result = {"result": "passed", "idle_cpu_percent": cpu, "private_mb": round(memory.private/1024**2, 2),
                       "working_set_mb": round(memory.rss/1024**2, 2), "measurement_seconds": 20,
                       "resident_children": len(measured.children(recursive=True)), "monitor_count": user.GetSystemMetrics(80),
-                      "checks": ["native tray", "widget no focus/topmost", "foreground window above widget", "widget collapse", "position persistence", "offscreen position recovery", "200 percent DPI message", "minimized widget stays minimized",
+                      "checks": ["native tray", "widget no focus/topmost", "foreground window above widget", "widget collapse", "position persistence", "offscreen position recovery", "200 percent DPI message", "minimized widget stays minimized", "wallpaper renderer exits (fake setter)",
                                  "single instance activation", "Chinese/spaced path", "silent native dialog", "snooze", "dialog process exit"]}
             assert repo.get_meta("widget_layout") is not None
             (output/"campus-desktop-metrics.json").write_text(json.dumps(result, indent=2), encoding="utf-8")

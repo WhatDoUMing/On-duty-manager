@@ -68,6 +68,15 @@ class Handler(BaseHandler):
                     return self._reply(401, {"error": "请先登录管理端"})
                 service = self.server.service
                 query = {k: v[0] for k, v in parse_qs(target.query).items()}
+                if target.path == "/api/wallpaper-status":
+                    return self._reply(200, service.wallpaper_status())
+                if target.path == "/api/wallpaper.png":
+                    status = service.repository.get_meta("wallpaper_status") or {}
+                    path = Path(status.get("preview", "")).resolve()
+                    folder = (service.repository.path.parent/"wallpapers").resolve()
+                    if path.parent != folder or not path.name.startswith("duty-") or path.suffix != ".png" or not path.is_file():
+                        return self._reply(404, {"error": "开启值日壁纸并等待生成后，即可查看图片"})
+                    return self._reply(200, path.read_bytes(), "image/png")
                 if target.path == "/api/state":
                     self.server.refresh_addresses()
                     result = service.view()

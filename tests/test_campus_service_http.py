@@ -193,6 +193,24 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/api/state")[0], 401)
         self.assertEqual(self.request("POST", "/api/login", {"password": "classroom123"})[0], 200)
 
+    def test_wallpaper_settings_preview_and_authentication(self):
+        self.assertEqual(self.request("GET", "/api/wallpaper.png")[0], 401)
+        self.setup()
+        self.assertEqual(self.request("GET", "/api/wallpaper.png")[0], 404)
+        self.assertEqual(self.request("POST", "/api/settings", {"revision":1,"wallpaper_enabled":"yes"})[0], 400)
+        self.assertEqual(self.request("POST", "/api/settings", {"revision":1,"wallpaper_enabled":True})[0], 200)
+        self.assertEqual(self.request("GET", "/api/wallpaper-status")[1]["phase"], "pending")
+        folder = self.repo.path.parent/"wallpapers"
+        folder.mkdir()
+        picture = folder/"duty-test.png"
+        picture.write_bytes(b"test-image")
+        self.repo.set_meta("wallpaper_status", {"phase":"active","preview":str(picture),"day":"2026-10-12"})
+        self.assertEqual(self.request("GET", "/api/wallpaper.png")[1], b"test-image")
+        self.repo.set_meta("wallpaper_status", {"phase":"active","preview":str(self.repo.path)})
+        self.assertEqual(self.request("GET", "/api/wallpaper.png")[0], 404)
+        display_cookie = "campus_display_session="+self.server.display_auth.new_session()
+        self.assertEqual(self.request("GET", "/api/wallpaper.png", cookie=display_cookie)[0], 401)
+
 
 if __name__ == "__main__":
     unittest.main()

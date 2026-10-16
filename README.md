@@ -1,7 +1,9 @@
 # 校园值日管家 · 高中班级版
 
 当前分支 `codex/campus-duty`：一个班级、多区域、小组或个人轮换、周月考核、静音预告明日，
-以及默认沉底的今日桌面名单。完整说明见 [校园版使用说明](docs/CAMPUS_README.md)。
+以及默认沉底的今日桌面名单。顶部绿色“记录考核”可随时打开标记表单；
+“提醒与壁纸”支持将今日名单设为壁纸并每日自动更新，默认关闭。
+完整说明见 [校园版使用说明](docs/CAMPUS_README.md)。
 
 ```powershell
 python -m pip install -r requirements.txt

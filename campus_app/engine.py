@@ -21,7 +21,7 @@ def empty_state():
     return {"schema_version": 2, "configs": [], "attendance": [], "marks": [],
             "swaps": [], "overlap_confirmations": [],
             "settings": {"reminder_time": "22:00", "reminder_mode": "popup",
-                         "paused": False, "widget_visible": True}}
+                         "paused": False, "widget_visible": True, "wallpaper_enabled": False}}
 
 
 def identifier(value=None):

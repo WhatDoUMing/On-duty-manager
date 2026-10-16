@@ -20,6 +20,9 @@ SameSite=Strict。静态页面仅包含外壳，排班、考核等数据接口�
 - `GET /api/assessments`、`/api/assessments.csv`：`period=week|month`、`anchor`，
   可用 `area_id`、`target_kind=group|student`、`target_id`、`reason=missed|poor` 筛选。
 - `GET /api/export`：校园配置，包含稳定人员及区域标识，导入后次日生效。
+- `GET /api/wallpaper-status`：壁纸状态 `phase=disabled|pending|updating|active|restoring|error`，
+  可含 `day,updated,message`；`preview` 为是否有预览，不返回磁盘路径。
+- `GET /api/wallpaper.png`：已生成的今日壁纸 PNG，尚无图片返回 404；仅管理身份可读。
 - `GET /api/display`：仅今日/明日区域、小组、名单和缺席状态。展示身份无权
   读取完整 state、考核或调用管理写入接口。
 
@@ -43,11 +46,15 @@ SameSite=Strict。静态页面仅包含外壳，排班、考核等数据接口�
 | `/api/swaps` | `area_id,first,second` 两个未来日期 |
 | `/api/swaps/cancel` | `id`；次日起撤销，历史保留 |
 | `/api/overlaps/confirm` | `keys` 交叉关系标识数组 |
-| `/api/settings` | `reminder_time,reminder_mode=popup|display,paused,widget_visible,autostart` |
+| `/api/settings` | `reminder_time,reminder_mode=popup|display,paused,widget_visible,wallpaper_enabled,autostart` |
 
 人员含 `id,name,number`；区域含 `id,name,cycle=daily|weekly,week_policy=shift|calendar`。
 小组模式的区域有 `groups:[{id,name,student_ids}]`，个人模式有 `student_ids,count`。
 配置顶层含 `class_name,mode=group|individual,students,areas`。
+
+`wallpaper_enabled` 为布尔值，默认 `false`，旧数据缺少该字段时也按关闭处理。
+启用或停用先保存用户意图，由托盘的壁纸线程异步生成、应用或恢复；可轮询状态接口。
+壁纸图片和状态要求管理身份，独立展示会话没有访问权限。生成失败会显示状态并自动重试。
 
 ## 提醒
 

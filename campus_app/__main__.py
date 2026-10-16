@@ -16,7 +16,12 @@ def main():
     parser.add_argument("--popup", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--day", help=argparse.SUPPRESS)
     parser.add_argument("--token", help=argparse.SUPPRESS)
+    parser.add_argument("--wallpaper-render", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.wallpaper_render:
+        from .wallpaper_render import render_request
+        render_request(args.wallpaper_render)
+        return
     args.data_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(level=logging.INFO, handlers=[RotatingFileHandler(args.data_dir/"campus.log", maxBytes=1048576,
                                                                        backupCount=2, encoding="utf-8")],

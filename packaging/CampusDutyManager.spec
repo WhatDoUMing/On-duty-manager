@@ -6,7 +6,7 @@ a = Analysis(
     [str(root / 'run_campus.pyw')], pathex=[str(root)], binaries=[],
     datas=[(str(root / 'campus.html'), '.'), (str(root / 'display.html'), '.'),
            (str(root / 'assets'), 'assets'), (str(root / 'docs' / 'THIRD_PARTY_NOTICES.md'), 'docs')],
-    hiddenimports=['pystray._win32', 'PIL._imaging'], hookspath=[], hooksconfig={}, runtime_hooks=[],
+    hiddenimports=['pystray._win32', 'PIL._imaging', 'PIL._imagingft'], hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=['pytest', 'psutil', 'websocket', 'unittest', 'paddleocr', 'torch', 'numpy',
               'pandas', 'matplotlib', 'PyQt5', 'PySide6', 'tkinter', '_tkinter'], noarchive=False,
 )
