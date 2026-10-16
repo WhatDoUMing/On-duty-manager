@@ -4,6 +4,8 @@ import math
 import os
 from pathlib import Path
 
+LAYOUT_VERSION = 2
+
 
 def render(payload, width, height, output):
     from PIL import Image, ImageDraw, ImageFont
@@ -40,7 +42,8 @@ def render(payload, width, height, output):
     if height > width:
         scale = max(1, scale)
     margin = max(20, round(38*scale))
-    left = round(width*.14) if width >= height else margin
+    # Keep the left third clear for desktop shortcut icons on every orientation.
+    left = max(margin, round(width*.36))
     right, top = width-margin, max(25, round(height*.065))
     accent, ink, muted = "#38674f", "#26392f", "#7d867c"
     title_font, small_font = font(max(25, 43*scale), True), font(max(12, 16*scale))

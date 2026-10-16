@@ -171,7 +171,7 @@ class WallpaperTests(unittest.TestCase):
 
 class WallpaperRenderingTests(unittest.TestCase):
     def test_multi_area_layout_and_portrait_fit(self):
-        from PIL import Image
+        from PIL import Image, ImageChops
         from campus_app.wallpaper_render import render
         with tempfile.TemporaryDirectory() as temp:
             repo = Repository(Path(temp)/"campus.sqlite3")
@@ -182,6 +182,9 @@ class WallpaperRenderingTests(unittest.TestCase):
                 result = render(payload,*size,image)
                 with Image.open(image) as picture:
                     self.assertEqual(picture.size,size)
+                    shortcut_strip = picture.crop((0, 0, size[0]//3, size[1]))
+                    blank = Image.new("RGB", shortcut_strip.size, "#f4f3ed")
+                    self.assertIsNone(ImageChops.difference(shortcut_strip, blank).getbbox())
                 for left,top,right,bottom in result["cards"]:
                     self.assertTrue(0<=left<right<=size[0] and 0<=top<bottom<=size[1])
             payload["today"]["areas"] *= 30

@@ -16,6 +16,8 @@ import threading
 import time
 from uuid import uuid4
 
+from .wallpaper_render import LAYOUT_VERSION
+
 
 class Wallpapers:
     def __init__(self, service, data_dir, backend_factory=None, renderer=None, clock=datetime.now):
@@ -99,7 +101,7 @@ class Wallpapers:
         monitors = self.backend.monitors()
         if not monitors:
             raise OSError("暂未检测到可用显示器，稍后会自动重试")
-        key = hashlib.sha256(json.dumps([today, [{k: m[k] for k in ("id", "width", "height")} for m in monitors]],
+        key = hashlib.sha256(json.dumps([LAYOUT_VERSION, today, [{k: m[k] for k in ("id", "width", "height")} for m in monitors]],
                                        ensure_ascii=False, sort_keys=True).encode()).hexdigest()
         applied = self.repo.get_meta("wallpaper_applied")
         if (applied and applied["key"] == key and all(Path(p).is_file() for p in applied["files"].values())
