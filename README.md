@@ -1,4 +1,20 @@
-# 值日管家
+# 校园值日管家 · 高中班级版
+
+当前分支 `codex/campus-duty`：一个班级、多区域、小组或个人轮换、周月考核、静音预告明日，
+以及默认沉底的今日桌面名单。完整说明见 [校园版使用说明](docs/CAMPUS_README.md)。
+
+```powershell
+python -m pip install -r requirements.txt
+python run_campus.pyw
+```
+
+校园版数据在 `%LOCALAPPDATA%\CampusDutyManager`，默认端口 `8766`。初始化第一步选择轮换模式，
+后续填名单与区域，最后设置口令。关闭网页后托盘继续运行。每阶段测试通过后推送本分支。
+本轮交付源码、测试和打包配置；再次收到“打包”指令后生成校园版 EXE。
+
+原宿舍版保留在 `master`；下面的入口、产物和说明均属于宿舍版。
+
+# 宿舍版值日管家
 
 Windows 托盘提醒 + 浏览器管理，同 Wi-Fi 手机和电脑共用一份值日安排。默认每天 **22:00** 发送右下角 Windows 系统通知；关闭管理网页后，后台继续提醒。
 

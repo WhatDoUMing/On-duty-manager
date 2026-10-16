@@ -1,0 +1,46 @@
+# 校园值日管家
+
+校园版分支：`codex/campus-duty`，适用于一个班级的多区域排班与周月考核。
+原宿舍版保留在 `master`。校园版与宿舍版可同时运行。
+
+```powershell
+pip install -r requirements.txt
+python run_campus.pyw
+```
+
+首次从托盘打开管理，第一步选择固定小组或个人批次轮换，再输入学生和区域。
+名单支持粘贴表格的“学号 姓名”两列；同名学生可用学号区分。
+每个区域可单独按天或按周轮换。人员交叉会显示红色提示，核对后确认清除。
+
+默认每天 22:00 静音预告明日，支持弹窗与浏览器只读展示页。今日名单常驻右上角，
+不抢焦点、不置顶，可被课件覆盖；可拖动、调整大小、收起、隐藏。
+浏览器关闭后托盘继续运行。手机连接同 Wi-Fi 后使用托盘提供的地址登录。
+
+标记小组或个人的忘做、值日较差，选择额外连续值日或仅记录其他处罚。
+小组处罚按顺序执行，个人额外加入，分开统计次数。周月考核支持筛选和 CSV。
+详见 [排班规则](CAMPUS_RULES.md) 与 [接口](CAMPUS_API.md)。
+
+数据在 `%LOCALAPPDATA%\CampusDutyManager`，默认端口 8766；口令、SQLite、日志和
+构建产物均被 Git 忽略。源码可使用 `--data-dir` 指定隔离目录，`--headless` 仅运行服务。
+独立数据目录中不自动读取宿舍版数据；配置页导入导出采用校园版 JSON 格式。
+
+验证命令（Windows，真实桌面测试会短暂显示隔离测试窗口）：
+
+```powershell
+python -m unittest discover -s tests
+python tools/campus_browser_smoke.py
+python tools/campus_desktop_smoke.py
+```
+
+浏览器验收使用本机 Chrome 或 Edge、隔离用户配置，不下载浏览器。
+桌面验收使用隔离数据库，拦截浏览器打开，不修改真实自启动项。
+
+本次只交付打包配置。用户再次明确要求“打包”后运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/build_campus_release.ps1
+```
+
+未来构建输出：`dist/CampusDutyManager`、`output/campus`。
+安装为当前用户安装，开机自启动默认关闭；校园版安装 GUID 和自启动项独立。
+安装程序、真实安装和打包后的性能验收随实际打包阶段进行。

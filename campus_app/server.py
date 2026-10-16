@@ -77,7 +77,7 @@ class Handler(BaseHandler):
                     revision, days = service.days(query.get("start", ""), query.get("end", ""))
                     return self._reply(200, {"revision": revision, "days": days})
                 if target.path in ("/api/assessments", "/api/assessments.csv"):
-                    kwargs = {k: query[k] for k in ("period", "anchor", "area_id", "target_kind", "reason") if k in query}
+                    kwargs = {k: query[k] for k in ("period", "anchor", "area_id", "target_kind", "reason", "target_id") if k in query}
                     if target.path.endswith(".csv"):
                         return self._reply(200, service.report_csv(**kwargs), "text/csv; charset=utf-8")
                     return self._reply(200, service.report(**kwargs))
@@ -90,7 +90,7 @@ class Handler(BaseHandler):
                      "/assets/campus.js": ("assets/campus.js", "text/javascript; charset=utf-8"),
                      "/assets/display.js": ("assets/display.js", "text/javascript; charset=utf-8"),
                      "/assets/campus.css": ("assets/campus.css", "text/css; charset=utf-8"),
-                     "/favicon.svg": ("assets/favicon.svg", "image/svg+xml")}
+                     "/favicon.svg": ("assets/campus-favicon.svg", "image/svg+xml")}
             if target.path not in files:
                 return self._reply(404, {"error": "页面不存在"})
             filename, mime = files[target.path]
@@ -162,7 +162,8 @@ class Handler(BaseHandler):
                         or not hmac.compare_digest(row[2], token) or action not in ("shown", "snooze", "dismiss")):
                     raise RuleError("本次提醒已过期")
                 repo = self.server.service.repository
-                ok = (repo.mark_notified(ds, token) if action == "shown" else repo.reminder_action(ds, token, action, self.server.clock()))
+                ok = ((repo.mark_notified(ds, token) or row[0] == "notified") if action == "shown"
+                      else repo.reminder_action(ds, token, action, self.server.clock()))
                 return self._reply(200, {"ok": ok})
             if not auth.authenticated(self._token()):
                 return self._reply(401, {"error": "登录已过期，请重新登录"})

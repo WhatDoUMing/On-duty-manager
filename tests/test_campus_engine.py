@@ -166,8 +166,34 @@ class CampusEngineTests(unittest.TestCase):
         before = rows(value)
         cfg = deepcopy(value["configs"][0])
         cfg.update(id="v2", effective="2026-10-14", class_name="新名称")
+        cfg["areas"][0]["groups"][0]["name"] = "重新命名的组"
         value["configs"].append(cfg)
         self.assertEqual([r["task_id"] for r in rows(value)], [r["task_id"] for r in before])
+
+    def test_queued_penalty_conflict_uses_actual_remaining_days(self):
+        value = penalize(state(), days=10)
+        value = penalize(value, target="C", days=2)
+        cfg = config()
+        cfg.update(id="v2", effective="2026-10-21")
+        cfg["areas"][0]["groups"].pop()
+        value["configs"].append(cfg)
+        found = conflicts(value, "2026-10-20")
+        self.assertEqual([c["id"] for c in found if c["kind"] == "mark"], [value["marks"][1]["id"]])
+
+    def test_swap_remaining_future_after_original_dates_pass(self):
+        value = add_swap(state(), "room", "2026-10-13", "2026-10-14", "2026-10-12")
+        value = penalize(value, days=10)
+        self.assertEqual(conflicts(value, "2026-10-20"), [])
+        self.assertEqual(rows(value, "2026-10-23", "2026-10-24")[0]["group_id"], "C")
+
+    def test_personal_week_and_specific_target_report(self):
+        value = state(mode="individual", cycle="weekly")
+        self.assertEqual(rows(value)[-1]["student_ids"], ["1", "2"])
+        self.assertEqual(rows(value, "2026-10-19", "2026-10-19")[0]["student_ids"], ["3", "4"])
+        value = penalize(value, "student", "1", penalty="other")
+        value = penalize(value, "student", "2", penalty="other")
+        report = assessments(value, "month", "2026-10-12", target_id="1")
+        self.assertEqual(len(report["details"]), 1)
 
     def test_cross_year_month_statistics(self):
         value = state()

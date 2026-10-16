@@ -24,6 +24,9 @@ class DutyService:
 
     def days(self, start, end):
         revision, state = self.repository.read()
+        return revision, self._schedule(revision, state, start, end)
+
+    def _schedule(self, revision, state, start, end):
         key = (revision, start, end)
         with self._lock:
             cached = self._cache.get(key)
@@ -33,7 +36,7 @@ class DutyService:
                 if len(self._cache) > 16:
                     self._cache.clear()
                 self._cache[key] = cached
-        return revision, deepcopy(cached)
+        return deepcopy(cached)
 
     def view(self):
         revision, state = self.repository.read()
@@ -59,7 +62,7 @@ class DutyService:
         start, end = today.isoformat(), (today+timedelta(days=1)).isoformat()
         revision, state = self.repository.read()
         cfg = engine.current_config(state, start) or engine.current_config(state, end)
-        _, days = self.days(start, end)
+        days = self._schedule(revision, state, start, end)
         # Deliberately whitelist fields: assessment and penalty reasons stay private.
         for d in days:
             d["areas"] = [{k: r[k] for k in ("area_id", "area_name", "group_name", "students", "absent_ids", "student_ids")}
@@ -108,11 +111,13 @@ class DutyService:
         cfg = engine.make_config(source, tomorrow)
         updated = deepcopy(state)
         updated["configs"] = [c for c in updated["configs"] if c["effective"] < tomorrow] + [cfg]
+        keys = {warning["key"] for warning in engine.overlaps(cfg)}
+        updated["overlap_confirmations"] = [key for key in updated["overlap_confirmations"] if key in keys]
         return updated, cfg
 
     def preview(self, body):
         revision, state = self.repository.read()
-        if body.get("revision") != revision:
+        if type(body.get("revision")) is not int or body["revision"] != revision:
             from .storage import RevisionConflict
             raise RevisionConflict("页面版本已更新，请刷新后预览")
         updated, cfg = self._configuration(state, body)
@@ -178,8 +183,8 @@ class DutyService:
         self.on_change()
         return self.view()
 
-    def report(self, period="week", anchor=None, area_id=None, target_kind=None, reason=None):
-        return engine.assessments(self.repository.read()[1], period, anchor or self.today().isoformat(), area_id, target_kind, reason)
+    def report(self, period="week", anchor=None, area_id=None, target_kind=None, reason=None, target_id=None):
+        return engine.assessments(self.repository.read()[1], period, anchor or self.today().isoformat(), area_id, target_kind, reason, target_id)
 
     def report_csv(self, **kwargs):
         output = io.StringIO(newline="")

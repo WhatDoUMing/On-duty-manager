@@ -33,6 +33,10 @@ class MONITORINFO(C.Structure):
     _fields_ = [("cbSize", W.DWORD), ("rcMonitor", W.RECT), ("rcWork", W.RECT), ("dwFlags", W.DWORD)]
 
 
+class MINMAXINFO(C.Structure):
+    _fields_ = [(name, W.POINT) for name in ("reserved", "max_size", "max_position", "min_track", "max_track")]
+
+
 def _rgb(r, g, b):
     return r | g << 8 | b << 16
 
@@ -52,6 +56,7 @@ class Window:
         self.payload, self.offset, self.buttons, self.hwnd = data(), 0, [], None
         self.layout = layout if isinstance(layout, dict) else {}
         self.collapsed = bool(self.layout.get("collapsed", False)) if widget else False
+        self._wanted_show = None
         work = W.RECT()
         self.u.SystemParametersInfoW(0x30, 0, C.byref(work), 0)
         self.scale = self.u.GetDpiForSystem()/96
@@ -78,7 +83,7 @@ class Window:
         self.instance = self.k.GetModuleHandleW(None)
         self.proc = WNDPROC(self._procedure)
         self.class_name = f"CampusDutyWindow-{threading.get_ident()}"
-        wc = WNDCLASS(0, self.proc, 0, 0, self.instance, None, self.u.LoadCursorW(None, C.c_void_p(32512)), self.brush, None, self.class_name)
+        wc = WNDCLASS(3, self.proc, 0, 0, self.instance, None, self.u.LoadCursorW(None, C.c_void_p(32512)), self.brush, None, self.class_name)
         if not self.u.RegisterClassW(C.byref(wc)):
             raise C.WinError(C.get_last_error())
         ex = 0x08000080 if widget else 0x00000080  # NOACTIVATE | TOOLWINDOW
@@ -137,22 +142,28 @@ class Window:
         self.k.GetModuleHandleW.restype, self.k.GetModuleHandleW.argtypes = W.HMODULE, [W.LPCWSTR]
 
     def _fonts(self):
-        for font in self.fonts:
-            self.g.DeleteObject(font)
+        old = self.fonts
         self.fonts = [self.g.CreateFontW(-round(size*self.scale), 0, 0, 0, weight, 0, 0, 0, 1, 0, 0, 5, 0, "Microsoft YaHei UI")
                       for size, weight in ((22 if self.widget else 30, 650), (14 if self.widget else 17, 400), (12, 400))]
+        for button in self.buttons:
+            self.u.SendMessageW(button, 0x30, self.fonts[1], 1)
+        for font in old:
+            self.g.DeleteObject(font)
 
     def refresh(self):
         self.payload = self.data()
         if self.widget:
-            self.u.ShowWindow(self.hwnd, 4 if self.visible() else 0)
+            wanted = self.visible()
+            if wanted != self._wanted_show:
+                self.u.ShowWindow(self.hwnd, 4 if wanted else 0)
+                self._wanted_show = wanted
             self.u.SetWindowPos(self.hwnd, C.c_void_p(1), 0, 0, 0, 0, 0x13)
         self.u.InvalidateRect(self.hwnd, None, True)
 
     def _draw_text(self, dc, value, rect, font=1, dim=False, measure=False):
         self.g.SelectObject(dc, self.fonts[font])
         self.g.SetTextColor(dc, _rgb(119, 129, 115) if dim else _rgb(36, 55, 45))
-        self.u.DrawTextW(dc, value, len(value), C.byref(rect), 0x10 | 0x800 | (0x400 if measure else 0))
+        self.u.DrawTextW(dc, value, -1, C.byref(rect), 0x10 | 0x800 | (0x400 if measure else 0))
         return rect.bottom-rect.top
 
     def _paint(self, hwnd):
@@ -162,6 +173,7 @@ class Window:
         dc = self.u.BeginPaint(hwnd, C.byref(ps))
         try:
             self.u.GetClientRect(hwnd, C.byref(rect))
+            self.g.SaveDC(dc)
             self.u.FillRect(dc, C.byref(rect), self.brush)
             self.g.SetBkMode(dc, 1)
             pad = round(18*self.scale)
@@ -171,8 +183,8 @@ class Window:
             subtitle = f'{target.get("date", "")}  ·  {self.payload.get("class_name", "校园值日管家")}'
             self._draw_text(dc, subtitle, W.RECT(pad, pad+round(40*self.scale), rect.right-pad, pad+round(67*self.scale)), 2, True)
             if self.widget:
-                self._draw_text(dc, "展开" if self.collapsed else "收起", W.RECT(rect.right-110, 7, rect.right-60, 30), 2, True)
-                self._draw_text(dc, "隐藏", W.RECT(rect.right-56, 7, rect.right-6, 30), 2, True)
+                self._draw_text(dc, "展开" if self.collapsed else "收起", W.RECT(rect.right-round(110*self.scale), round(7*self.scale), rect.right-round(60*self.scale), round(30*self.scale)), 2, True)
+                self._draw_text(dc, "隐藏", W.RECT(rect.right-round(56*self.scale), round(7*self.scale), rect.right-round(6*self.scale), round(30*self.scale)), 2, True)
             if self.collapsed:
                 return
             header, footer = round(92*self.scale), (0 if self.widget else round(72*self.scale))
@@ -203,6 +215,7 @@ class Window:
             info = SCROLLINFO(C.sizeof(SCROLLINFO), 0x7, 0, max(0, content-1), page, self.offset, 0)
             self.u.SetScrollInfo(hwnd, 1, C.byref(info), True)
         finally:
+            self.g.RestoreDC(dc, -1)
             self.u.EndPaint(hwnd, C.byref(ps))
 
     def _save(self):
@@ -213,6 +226,11 @@ class Window:
 
     def _procedure(self, hwnd, message, wp, lp):
         try:
+            if message == 0x24 and hasattr(self, "scale"):
+                limits = C.cast(lp, C.POINTER(MINMAXINFO)).contents
+                limits.min_track.x = round((260 if self.widget else 500)*self.scale)
+                limits.min_track.y = round((100 if self.widget else 260)*self.scale)
+                return 0
             if message == 0x14:
                 return 1
             if message == 0xF:
@@ -227,16 +245,16 @@ class Window:
                 rect = W.RECT()
                 self.u.GetWindowRect(hwnd, C.byref(rect))
                 x, y = C.c_short(lp & 0xffff).value-rect.left, C.c_short((lp >> 16) & 0xffff).value-rect.top
-                if y < round(70*self.scale) and x < rect.right-rect.left-120:
+                if y < round(70*self.scale) and x < rect.right-rect.left-round(120*self.scale):
                     return 2
                 return 1
             if message == 0x202 and self.widget:
                 rect = W.RECT()
                 self.u.GetClientRect(hwnd, C.byref(rect))
                 x, y = lp & 0xffff, (lp >> 16) & 0xffff
-                if y < 35 and x > rect.right-60:
+                if y < round(35*self.scale) and x > rect.right-round(60*self.scale):
                     self.hide()
-                elif y < 35 and x > rect.right-115:
+                elif y < round(35*self.scale) and x > rect.right-round(115*self.scale):
                     outer = W.RECT()
                     self.u.GetWindowRect(hwnd, C.byref(outer))
                     if not self.collapsed:

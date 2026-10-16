@@ -131,7 +131,10 @@ def overlaps(config, confirmations=()):
 
 
 def _signature(config, area):
-    return json.dumps([config["mode"], {k: v for k, v in area.items() if k != "name"}], sort_keys=True)
+    content = {k: v for k, v in area.items() if k != "name"}
+    if "groups" in content:
+        content["groups"] = [{k: v for k, v in g.items() if k != "name"} for g in content["groups"]]
+    return json.dumps([config["mode"], content], sort_keys=True)
 
 
 def _cancelled(item, ds):
@@ -155,6 +158,9 @@ def schedule(state, start, end, _progress=None):
     for swap in state["swaps"]:
         overrides[swap["first_task"]].append((swap, swap["second_owner"]))
         overrides[swap["second_task"]].append((swap, swap["first_owner"]))
+    area_marks = defaultdict(list)
+    for record in state["marks"]:
+        area_marks[record["area_id"]].append(record)
     consumed = defaultdict(int)
     away, contexts, result = set(), {}, []
     cfg_index, cfg = -1, None
@@ -191,7 +197,7 @@ def schedule(state, start, end, _progress=None):
             ordinal = ((current-day(context["start"])).days + day(context["start"]).weekday()
                        if calendar else context["ordinal"])
             normal_task = f'{context["epoch"]}:{aid}:{ordinal}'
-            eligible = [m for m in state["marks"] if m["area_id"] == aid and m["penalty"] == "duty"
+            eligible = [m for m in area_marks[aid] if m["penalty"] == "duty"
                         and m["starts"] <= ds and not _cancelled(m, ds) and consumed[m["id"]] < m["days"]]
             group_penalty = next((m for m in eligible if m["target_kind"] == "group" and m["target_id"] in groups), None)
             group_id, group_name, swap_id, conflict = None, None, None, False
@@ -214,7 +220,7 @@ def schedule(state, start, end, _progress=None):
             task_id = (f'penalty:{group_penalty["id"]}:{consumed[group_penalty["id"]]}'
                        if group_penalty else normal_task)
             if not group_penalty:
-                for swap, owner in overrides[task_id]:
+                for swap, owner in overrides.get(task_id, []):
                     if swap["starts"] > ds or _cancelled(swap, ds):
                         continue
                     swap_id = swap["id"]
@@ -382,7 +388,7 @@ def conflicts(state, today):
     return result
 
 
-def assessments(state, period, anchor, area_id=None, target_kind=None, reason=None):
+def assessments(state, period, anchor, area_id=None, target_kind=None, reason=None, target_id=None):
     anchor = day(anchor)
     if period == "week":
         start = anchor-timedelta(days=anchor.weekday())
@@ -395,6 +401,7 @@ def assessments(state, period, anchor, area_id=None, target_kind=None, reason=No
     detail = [deepcopy(m) for m in state["marks"] if not m.get("cancelled_on")
               and start.isoformat() <= m["date"] <= end.isoformat()
               and (not area_id or m["area_id"] == area_id) and (not target_kind or m["target_kind"] == target_kind)
+              and (not target_id or m["target_id"] == target_id)
               and (not reason or m["reason"] == reason)]
     summary = {}
     for m in detail:

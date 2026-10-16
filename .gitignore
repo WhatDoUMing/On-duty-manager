@@ -13,3 +13,6 @@ runtime.json
 *.exe
 *.msi
 .env
+# User exports can contain real student and assessment data.
+校园值日配置-*.json
+值日考核-*.csv

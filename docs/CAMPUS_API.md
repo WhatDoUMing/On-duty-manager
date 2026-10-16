@@ -18,7 +18,7 @@ SameSite=Strict。静态页面仅包含外壳，排班、考核等数据接口�
 - `GET /api/state`：revision、版本化配置、事件、今日/明日任务及交叉提醒。
 - `GET /api/schedule?start=YYYY-MM-DD&end=YYYY-MM-DD`：最多两年的日期数组。
 - `GET /api/assessments`、`/api/assessments.csv`：`period=week|month`、`anchor`，
-  可用 `area_id`、`target_kind=group|student`、`reason=missed|poor` 筛选。
+  可用 `area_id`、`target_kind=group|student`、`target_id`、`reason=missed|poor` 筛选。
 - `GET /api/export`：校园配置，包含稳定人员及区域标识，导入后次日生效。
 - `GET /api/display`：仅今日/明日区域、小组、名单和缺席状态。展示身份无权
   读取完整 state、考核或调用管理写入接口。

@@ -95,6 +95,18 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("--background", command)
         self.assertIn("中文 路径", command)
 
+    def test_removed_overlap_confirmation_does_not_mask_reintroduction(self):
+        from campus_app.engine import overlaps
+        original = self.repo.read()[1]
+        original["configs"][0]["areas"][0]["groups"][1]["student_ids"].append("1")
+        key = overlaps(original["configs"][0])[0]["key"]
+        original["overlap_confirmations"] = [key]
+        self.repo.mutate(1, lambda _: original)
+        self.service.edit("config", {"revision": 2, "config": config()})
+        self.assertEqual(self.repo.read()[1]["overlap_confirmations"], [])
+        self.service.edit("config", {"revision": 3, "config": original["configs"][0]})
+        self.assertEqual(len(self.service.view()["overlaps"]), 1)
+
 
 class HttpTests(unittest.TestCase):
     def setUp(self):

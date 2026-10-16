@@ -27,6 +27,17 @@ def host(root):
     webbrowser.open = opened
     def widget_start(self):
         start(self)
+        # Simulate DPI messages in-process so RECT pointers stay in the owning
+        # address space. The UI thread handles them through SendMessage.
+        from campus_app.native import W
+        rect = W.RECT()
+        self.window.u.GetWindowRect(self.window.hwnd, C.byref(rect))
+        original = W.RECT(rect.left, rect.top, rect.right, rect.bottom)
+        dpi = round(self.window.scale*96)
+        self.window.u.SendMessageW(self.window.hwnd, 0x2E0, 192 | (192 << 16), C.addressof(rect))
+        assert self.window.scale == 2.0 and all(self.window.fonts)
+        self.window.u.SendMessageW(self.window.hwnd, 0x2E0, dpi | (dpi << 16), C.addressof(original))
+        self.window.u.SendMessageW(self.window.hwnd, 0x8001, 0, 0)
         (root/"widget.json").write_text(json.dumps({"hwnd": self.window.hwnd}))
     WidgetHost.start = widget_start
     def icon_factory(*args, **kwargs):
@@ -58,6 +69,8 @@ def main():
     user.GetWindowRect.argtypes = [W.HWND, C.POINTER(W.RECT)]
     user.IsWindowVisible.argtypes = [W.HWND]
     user.GetWindow.argtypes, user.GetWindow.restype = [W.HWND, W.UINT], W.HWND
+    user.ShowWindow.argtypes = [W.HWND, C.c_int]
+    user.IsIconic.argtypes = [W.HWND]
     flags = subprocess.CREATE_NO_WINDOW
     exe = Path(sys.executable).with_name("pythonw.exe")
     executable = str(exe) if exe.exists() else sys.executable
@@ -72,6 +85,7 @@ def main():
                   {"id": "b", "name": "第二组", "student_ids": ["2", "3"]}]}]}, date.today().isoformat())]
         state["settings"]["paused"] = True
         repo.mutate(0, lambda _: state)
+        repo.set_meta("widget_layout", {"x": 100000, "y": 100000, "width": 350, "height": 220})
         foreground = user.GetForegroundWindow()
         process = subprocess.Popen([executable, __file__, "--host", str(root)], cwd=ROOT,
                                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, creationflags=flags)
@@ -86,17 +100,33 @@ def main():
             exstyle = user.GetWindowLongW(hwnd, -20)
             assert exstyle & 0x08000000 and not exstyle & 0x8, "widget activated or topmost"
             assert user.GetForegroundWindow() == foreground, "widget stole foreground"
+            above, handle = [], user.GetWindow(hwnd, 3)
+            while handle and handle not in above and len(above) < 1000:
+                above.append(handle)
+                handle = user.GetWindow(handle, 3)
+            # Topmost windows can be in a separate GetWindow traversal band;
+            # they necessarily cover this explicitly non-topmost widget.
+            if foreground and foreground not in above and not user.GetWindowLongW(foreground, -20) & 0x8:
+                raise AssertionError(f"z-order foreground={foreground}, widget={hwnd}, above={above}, foreground_style={user.GetWindowLongW(foreground,-20)}")
+            user.ShowWindow(hwnd, 6)
+            user.SendMessageW(hwnd, 0x8001, 0, 0)
+            assert user.IsIconic(hwnd), "refresh restored minimized widget"
+            user.ShowWindow(hwnd, 4)
             ImageGrab.grab(window=hwnd).save(output/"campus-widget.png")
             rect = W.RECT()
             user.GetWindowRect(hwnd, C.byref(rect))
+            assert rect.left < 100000 and rect.top < 100000, "offscreen saved position was not recovered"
             original_height = rect.bottom-rect.top
             client = W.RECT()
             user.GetClientRect(C.c_void_p(hwnd), C.byref(client))
-            user.SendMessageW(hwnd, 0x202, 0, (15 << 16) | (client.right-80))
+            user.GetDpiForWindow.argtypes = [W.HWND]
+            scale = user.GetDpiForWindow(hwnd)/96
+            click = (round(15*scale) << 16) | (client.right-round(80*scale))
+            user.SendMessageW(hwnd, 0x202, 0, click)
             collapsed = W.RECT()
             user.GetWindowRect(hwnd, C.byref(collapsed))
             assert collapsed.bottom-collapsed.top < original_height, "collapse failed"
-            user.SendMessageW(hwnd, 0x202, 0, (15 << 16) | (client.right-80))
+            user.SendMessageW(hwnd, 0x202, 0, click)
             duplicate = subprocess.run([executable, "-m", "campus_app", "--data-dir", str(root), "--background"],
                                        cwd=ROOT, capture_output=True, timeout=12, creationflags=flags)
             assert duplicate.returncode == 0, duplicate.stderr
@@ -147,8 +177,8 @@ def main():
                 popup.stderr.close()
             result = {"result": "passed", "idle_cpu_percent": cpu, "private_mb": round(memory.private/1024**2, 2),
                       "working_set_mb": round(memory.rss/1024**2, 2), "measurement_seconds": 20,
-                      "resident_children": len(measured.children(recursive=True)),
-                      "checks": ["native tray", "widget no focus/topmost", "widget collapse", "position persistence",
+                      "resident_children": len(measured.children(recursive=True)), "monitor_count": user.GetSystemMetrics(80),
+                      "checks": ["native tray", "widget no focus/topmost", "foreground window above widget", "widget collapse", "position persistence", "offscreen position recovery", "200 percent DPI message", "minimized widget stays minimized",
                                  "single instance activation", "Chinese/spaced path", "silent native dialog", "snooze", "dialog process exit"]}
             assert repo.get_meta("widget_layout") is not None
             (output/"campus-desktop-metrics.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
