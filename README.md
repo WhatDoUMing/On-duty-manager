@@ -2,7 +2,13 @@
 
 Windows 托盘提醒 + 浏览器管理，同 Wi-Fi 手机和电脑共用一份值日安排。默认每天 **22:00** 发送右下角 Windows 系统通知；关闭管理网页后，后台继续提醒。
 
-本轮已完成三个阶段的源码、测试和打包配置。**当前未生成 EXE 或安装程序**；收到明确的“打包”指令后再构建。
+已生成 Windows 64 位安装包和便携版，位于打包机器的 `output/` 目录。构建产物不提交到 Git。
+
+## 安装版与便携版
+
+- 安装版：`output/DutyManager-Setup-0.1.0.exe`，安装时可选择开机自启动，默认不勾选。
+- 便携版：完整解压 `output/DutyManager-Portable-0.1.0.zip`，运行文件夹中的 `DutyManager.exe`，保留旁边的 `_internal` 目录。
+- 两种方式均无需另装 Python。使用说明和 SHA-256 校验文件也在 `output/`。
 
 ## 从源码运行
 
@@ -74,11 +80,24 @@ python tools/notification_smoke.py
 
 已通过 **52 个自动测试**，验证桌面 1440×1100、手机 390×844 的完整操作流程，以及真实 Windows 托盘、单实例、通知中心记录和原生按钮协议。系统通知版本的一次 20 秒源码后台采样：私有内存 **25.48 MB**、工作集 **41.22 MB**、平均 CPU **0.2%**，无常驻子进程。数值随系统和 Python 环境变化，打包后需复测。手机验证为浏览器尺寸模拟，真实手机 Wi-Fi 连接需在实际网络验收。
 
-## 后续打包
+## 重新打包
 
 已准备 `packaging/DutyManager.spec` 和 `packaging/installer.iss`。采用 PyInstaller **目录模式**，减少单文件解压和额外常驻进程；安装程序将目录整体安装，不要求目标电脑安装 Python。
 
-安装采用当前用户目录，开机启动默认不勾选；卸载清理应用自启动入口，保留用户排班数据。构建需要 PyInstaller 和 Inno Setup 6.3+。本轮只检查配置源码，实际构建、安装、卸载和打包后的性能测试留到“打包”阶段。
+安装采用当前用户目录，开机启动默认不勾选；卸载清理应用自启动入口，保留用户排班数据。构建需要 PyInstaller 和 Inno Setup 6.3+。用户明确要求“打包”后运行：
+
+```powershell
+.\tools\build_release.ps1 -InnoCompiler 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+```
+
+本机已在 `.runtime/inno` 部署便携编译器，可省略参数。成品验证：
+
+```powershell
+python tools/package_smoke.py
+python tools/installer_smoke.py
+```
+
+打包后的程序已在不含 Python 的运行 PATH 下验证启动、认证、网页资源、Windows 系统通知及稍后提醒，并从便携压缩包解压到含中文和空格的路径中验证；20 秒采样私有内存 **27.32 MB**、工作集 **43.71 MB**、平均 CPU **0%**，无常驻子进程。安装测试使用独立应用身份、独立自启动名称和项目内目录，验证默认自启动关闭、取消勾选清除旧入口、勾选后启用及卸载清理，保留正常用户设置。
 
 ## 代码结构
 

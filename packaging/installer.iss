@@ -1,10 +1,20 @@
 ; Source only: build this after an explicit 打包 request and PyInstaller output.
-#define AppName "值日管家"
 #define AppVersion "0.1.0"
 #define AppExe "DutyManager.exe"
+#ifdef PackagingTest
+  #define AppName "值日管家（安装验证）"
+  #define AppGuid "{{779F246E-99EE-4671-B93E-9A71A7083BD3}"
+  #define RunValueName "DutyManagerPackagingTest"
+  #define ProtocolName "dutymanager-packaging-test"
+#else
+  #define AppName "值日管家"
+  #define AppGuid "{{5C63B66F-4033-4FB6-A178-4191F264D4DB}"
+  #define RunValueName "DutyManager"
+  #define ProtocolName "dutymanager"
+#endif
 
 [Setup]
-AppId={{5C63B66F-4033-4FB6-A178-4191F264D4DB}
+AppId={#AppGuid}
 AppName={#AppName}
 AppVersion={#AppVersion}
 DefaultDirName={localappdata}\Programs\DutyManager
@@ -48,10 +58,11 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "DutyManager"; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "DutyManager"; ValueData: """{app}\{#AppExe}"" --background"; Tasks: autostart
-Root: HKCU; Subkey: "Software\Classes\dutymanager"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\AppUserModelId\DutyManager"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "{#RunValueName}"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "{#RunValueName}"; Tasks: not autostart; Flags: deletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#RunValueName}"; ValueData: """{app}\{#AppExe}"" --background"; Tasks: autostart
+Root: HKCU; Subkey: "Software\Classes\{#ProtocolName}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#RunValueName}"; Flags: uninsdeletekey
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "打开值日管家"; Flags: nowait postinstall skipifsilent
