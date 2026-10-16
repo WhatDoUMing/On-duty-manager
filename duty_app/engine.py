@@ -83,9 +83,9 @@ def schedule(state: dict, start: str, end: str) -> list[dict]:
             events[event["date"]].append(event)
     overrides = {}
     for swap in state["swaps"]:
-        if not swap.get("cancelled"):
-            overrides.update({swap["first_slot"]: (swap["second_member"], swap["id"]),
-                              swap["second_slot"]: (swap["first_member"], swap["id"])})
+        if not swap.get("cancelled") or swap.get("cancelled_from"):
+            overrides.update({swap["first_slot"]: (swap["second_member"], swap["id"], swap.get("cancelled_from")),
+                              swap["second_slot"]: (swap["first_member"], swap["id"], swap.get("cancelled_from"))})
     away, priority, rotation = set(), [], []
     pending = None
     active_cfg = None
@@ -129,8 +129,8 @@ def schedule(state: dict, start: str, end: str) -> list[dict]:
                 priority = [p for p in priority if p != base]
             slot = f'{active_cfg["id"]}:{ordinal}'
             conflict, swap_id = False, None
-            if slot in overrides:
-                proposed, swap_id = overrides[slot]
+            if slot in overrides and (not overrides[slot][2] or ds < overrides[slot][2]):
+                proposed, swap_id, _ = overrides[slot]
                 conflict = proposed not in available
                 if not conflict:
                     owner = proposed

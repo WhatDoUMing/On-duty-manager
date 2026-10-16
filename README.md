@@ -2,7 +2,7 @@
 
 Windows 托盘值日提醒工具，浏览器与同 Wi-Fi 手机共用排班。默认每日 22:00 提醒。
 
-开发阶段：值日引擎及测试已完成，接下来接入本地服务、托盘和管理界面。
+开发阶段：值日引擎、本地服务、托盘与提醒已实现，接下来接入管理界面。
 
 本轮仅交付源码与测试，收到明确的“打包”指令后才生成 EXE 和安装程序。
 
@@ -17,3 +17,14 @@ Windows 托盘值日提醒工具，浏览器与同 Wi-Fi 手机共用排班。�
 ## 测试
 
 Python 3.11+：`python -m unittest discover -s tests -v`
+
+## 从源码运行
+
+```powershell
+python -m pip install -r requirements.txt
+python -m duty_app
+```
+
+首次从托盘打开后设置管理口令。默认端口 8765；`--background` 静默进入托盘。
+数据默认位于 `%LOCALAPPDATA%\DutyManager`，开发隔离可使用 `--data-dir .runtime`。
+`--headless` 仅运行本地服务，用于诊断。当前管理 HTML 将在第三阶段接入 API。
