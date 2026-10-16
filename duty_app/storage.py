@@ -17,7 +17,7 @@ class RevisionConflict(ValueError):
 
 
 class Repository:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, initial_state=empty_state):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as db:
@@ -31,7 +31,7 @@ class Repository:
                     day TEXT PRIMARY KEY, status TEXT NOT NULL, due TEXT,
                     token TEXT NOT NULL, claimed TEXT NOT NULL);
             """)
-            db.execute("INSERT OR IGNORE INTO state VALUES(1,0,?)", (json.dumps(empty_state()),))
+            db.execute("INSERT OR IGNORE INTO state VALUES(1,0,?)", (json.dumps(initial_state()),))
 
     @contextmanager
     def connection(self):
